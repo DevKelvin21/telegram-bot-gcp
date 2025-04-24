@@ -1,0 +1,39 @@
+name: Deploy Telegram Bot to GCP
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy floristeria-morales-bot Cloud Function
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+
+    - name: Deploy Cloud Function
+      run: |
+        gcloud functions deploy telegram_bot \
+          --runtime python311 \
+          --trigger-http \
+          --allow-unauthenticated \
+          --entry-point telegram_bot \
+          --region us-central1 \
+          --service-account '${{secrets.SERVICE_ACCOUNT}}' \
+          --set-env-vars TELEGRAM_TOKEN=${TELEGRAM_TOKEN},OPENAI_API_KEY=${OPENAI_API_KEY},BQ_PROJECT=${BQ_PROJECT},BQ_DATASET=${BQ_DATASET},BQ_TABLE=${BQ_TABLE},GPT_MODEL=${GPT_MODEL},ALLOWED_USER_IDS=${ALLOWED_USERS}
