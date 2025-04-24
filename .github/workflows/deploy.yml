@@ -31,10 +31,16 @@ jobs:
       run: |
         gcloud functions deploy telegram_bot \
           --runtime python311 \
-          --gen2 \
           --trigger-http \
           --allow-unauthenticated \
           --entry-point telegram_bot \
           --region us-central1 \
-          --service-account '${{secrets.SERVICE_ACCOUNT}}' \
-          --set-env-vars TELEGRAM_TOKEN=${TELEGRAM_TOKEN},OPENAI_API_KEY=${OPENAI_API_KEY},BQ_PROJECT=${BQ_PROJECT},BQ_DATASET=${BQ_DATASET},BQ_TABLE=${BQ_TABLE},GPT_MODEL=${GPT_MODEL},ALLOWED_USER_IDS=${ALLOWED_USERS}
+          --service-account ${{ secrets.SERVICE_ACCOUNT }} \
+          --set-env-vars \
+            TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }},\
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},\
+            BQ_PROJECT=${{ secrets.BQ_PROJECT }},\
+            BQ_DATASET=${{ secrets.BQ_DATASET }},\
+            BQ_TABLE=${{ secrets.BQ_TABLE }},\
+            GPT_MODEL=${{ secrets.GPT_MODEL }},\
+            ALLOWED_USER_IDS=${{ secrets.ALLOWED_USER_IDS }}
