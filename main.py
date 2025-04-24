@@ -1,48 +1,108 @@
-import functions_framework
-import requests
+import asyncio
 import os
 import json
+import requests
+from datetime import datetime, timezone
 from google.cloud import bigquery
 
-# Set your Telegram and OpenAI keys via env vars
+from functions_framework import http
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
+from telegram import Update
+
+
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 BQ_PROJECT = os.getenv("BQ_PROJECT")
 BQ_DATASET = os.getenv("BQ_DATASET")
 BQ_TABLE = os.getenv("BQ_TABLE")
+GPT_MODEL = os.getenv("GPT_MODEL", "gpt-3.5-turbo")
+ALLOWED_USERS = set(map(int, os.getenv("ALLOWED_USER_IDS", "").split(",")))
 
-# Allow switching between GPT models (e.g., gpt-3.5-turbo or gpt-4) for cost optimization
-GPT_MODEL = os.getenv("GPT_MODEL", "gpt-3.5-turbo")  # Default to cost-efficient model
+@http
+def telegram_bot(request):
+    return asyncio.run(main(request))
 
-@functions_framework.http
-def telegram_webhook(request):
+
+async def main(request):
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    bot = app.bot
+
+    app.add_handler(CommandHandler("start", on_start))
+    app.add_handler(MessageHandler(filters.TEXT, on_message))
+
+    if request.method == 'GET':
+        await bot.set_webhook(f'https://{request.host}/telegram_bot')
+        return "Webhook set"
+
+    async with app:
+        update = Update.de_json(request.json, bot)
+        await app.process_update(update)
+
+    return "ok"
+
+
+async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Hola, soy tu bot de ventas y gastos para la floristería Morale's 🌸"
+    )
+
+
+async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message.text
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+
+    if user_id not in ALLOWED_USERS:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"Tu ID de usuario de Telegram es: `{user_id}`\nCompártelo con el administrador para que te dé acceso.",
+            parse_mode="Markdown"
+        )
+        log_to_bigquery({
+            "timestamp": current_utc_iso(),
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "operation_type": "unauthorized_access",
+            "message_content": message
+        })
+        return
+
     try:
-        # Parse the Telegram message
-        body = request.get_json()
-        message = body.get('message', {}).get('text')
-        chat_id = body.get('message', {}).get('chat', {}).get('id')
-
-        if not message or not chat_id:
-            return "No message found", 400
-
-        # Interpret the message using ChatGPT
         gpt_response = interpret_message_with_gpt(message)
-
-        # Parse the response from GPT to extract structured data
-        structured_data = parse_gpt_response(gpt_response)
-
-        # Insert the structured data into BigQuery
+        structured_data = json.loads(gpt_response)
+        if not structured_data.get("sales") and not structured_data.get("expenses"):
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="No se encontró ninguna venta ni gasto en el mensaje."
+            )
+            return
         insert_to_bigquery(structured_data)
 
-        # Send confirmation back to the user
-        reply_text = f"Got it! Here's what I recorded:\n{json.dumps(structured_data, indent=2)}"
-        send_telegram_message(chat_id, reply_text)
+        log_to_bigquery({
+            "timestamp": current_utc_iso(),
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "operation_type": "data_insert",
+            "message_content": message
+        })
 
-        return "OK", 200
-
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"Registro guardado correctamente:\n{json.dumps(structured_data, indent=2)}"
+        )
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return f"Internal error: {str(e)}", 500
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"Hubo un error al procesar el mensaje: {str(e)}"
+        )
+
 
 def interpret_message_with_gpt(message: str) -> str:
     headers = {
@@ -52,7 +112,25 @@ def interpret_message_with_gpt(message: str) -> str:
     data = {
         "model": GPT_MODEL,
         "messages": [
-            {"role": "system", "content": "You are an assistant that converts flower shop sales and expenses into structured JSON. Output only JSON."},
+            {"role": "system", "content": (
+                "You are an assistant that extracts structured sales and expenses data from flower shop messages. "
+                "Each message may include sales in free-text form. Your output must be a JSON object with this structure:\n\n"
+                "{\n"
+                "  \"date\": \"YYYY-MM-DD\",  // If not provided, use today's date\n"
+                "  \"sales\": [\n"
+                "    {\n"
+                "      \"item\": \"string\",  // Item name or description\n"
+                "      \"quantity\": null,   // null if quantity not explicitly given\n"
+                "      \"unit_price\": null, // null if not clearly provided\n"
+                "      \"total_price\": float // extracted from the message\n"
+                "    }\n"
+                "  ],\n"
+                "  \"expenses\": [\n"
+                "    {\"description\": \"string\", \"amount\": float}\n"
+                "  ]\n"
+                "}\n\n"
+                "If no unit_price or quantity is provided, keep them as null. Only output valid JSON."
+            )},
             {"role": "user", "content": message}
         ],
         "temperature": 0.2
@@ -61,8 +139,6 @@ def interpret_message_with_gpt(message: str) -> str:
     resp.raise_for_status()
     return resp.json()['choices'][0]['message']['content']
 
-def parse_gpt_response(gpt_response: str) -> dict:
-    return json.loads(gpt_response)
 
 def insert_to_bigquery(row: dict):
     client = bigquery.Client()
@@ -71,7 +147,14 @@ def insert_to_bigquery(row: dict):
     if errors:
         raise RuntimeError(f"BigQuery insert errors: {errors}")
 
-def send_telegram_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text}
-    requests.post(url, json=payload)
+
+def log_to_bigquery(log_entry: dict):
+    client = bigquery.Client()
+    log_table_id = f"{BQ_PROJECT}.{BQ_DATASET}.audit_logs"
+    errors = client.insert_rows_json(log_table_id, [log_entry])
+    if errors:
+        print(f"Audit log insert errors: {errors}")
+
+
+def current_utc_iso():
+    return datetime.now(timezone.utc).isoformat()
