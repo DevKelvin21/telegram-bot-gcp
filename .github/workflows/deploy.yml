@@ -36,11 +36,10 @@ jobs:
           --entry-point telegram_bot \
           --region us-central1 \
           --service-account ${{ secrets.SERVICE_ACCOUNT }} \
-          --set-env-vars \
-            TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }},\
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},\
-            BQ_PROJECT=${{ secrets.BQ_PROJECT }},\
-            BQ_DATASET=${{ secrets.BQ_DATASET }},\
-            BQ_TABLE=${{ secrets.BQ_TABLE }},\
-            GPT_MODEL=${{ secrets.GPT_MODEL }},\
-            ALLOWED_USER_IDS=${{ secrets.ALLOWED_USER_IDS }}
+          --set-env-vars TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }},
+                 OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }},
+                 BQ_PROJECT=${{ secrets.BQ_PROJECT }},
+                 BQ_DATASET=${{ secrets.BQ_DATASET }},
+                 BQ_TABLE=${{ secrets.BQ_TABLE }},
+                 GPT_MODEL=${{ secrets.GPT_MODEL }},
+                 ALLOWED_USER_IDS=${{ secrets.ALLOWED_USER_IDS }}
