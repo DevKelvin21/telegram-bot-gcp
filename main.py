@@ -4,7 +4,7 @@ import json
 import requests
 from datetime import datetime, timezone
 from google.cloud import bigquery
-
+from flask import make_response
 from functions_framework import http
 from telegram.ext import (
     Application,
@@ -26,7 +26,12 @@ ALLOWED_USERS = set(map(int, os.getenv("ALLOWED_USER_IDS", "").split(",")))
 
 @http
 def telegram_bot(request):
-    return asyncio.run(main(request))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    result = loop.run_until_complete(main(request))
+    response = make_response(result)
+    response.headers["Content-Type"] = "text/plain"
+    return response
 
 
 async def main(request):
