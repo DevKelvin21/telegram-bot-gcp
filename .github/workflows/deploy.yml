@@ -32,6 +32,7 @@ jobs:
         gcloud functions deploy telegram_bot \
           --runtime python311 \
           --trigger-http \
+          --no-gen2 \
           --allow-unauthenticated \
           --entry-point telegram_bot \
           --region us-central1 \
