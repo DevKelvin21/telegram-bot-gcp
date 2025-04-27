@@ -4,7 +4,7 @@ import json
 import requests
 from datetime import datetime, timezone
 from google.cloud import bigquery
-from flask import make_response
+from google.cloud import firestore
 from functions_framework import http
 from telegram.ext import (
     Application,
@@ -22,11 +22,16 @@ BQ_PROJECT = os.getenv("BQ_PROJECT")
 BQ_DATASET = os.getenv("BQ_DATASET")
 BQ_TABLE = os.getenv("BQ_TABLE")
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-3.5-turbo")
-allowed_user_ids_str = os.getenv("ALLOWED_USERS", "").strip()
-if allowed_user_ids_str:
-    ALLOWED_USERS = set(map(int, filter(None, allowed_user_ids_str.split(","))))
-else:
-    ALLOWED_USERS = set()
+
+
+def load_allowed_user_ids():
+    db = firestore.Client()
+    docs = db.collection("allowedUserIDs").stream()
+    allowed_users = set()
+    for doc in docs:
+        data = doc.to_dict()
+        allowed_users.add(int(data["ID"]))
+    return allowed_users
 
 @http
 def telegram_bot(request):
@@ -63,7 +68,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
 
-    if user_id not in ALLOWED_USERS:
+    allowed_users = load_allowed_user_ids()
+    if user_id not in allowed_users:
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"Tu ID de usuario de Telegram es: `{user_id}`\nCompártelo con el administrador para que te dé acceso.",
