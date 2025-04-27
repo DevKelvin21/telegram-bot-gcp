@@ -14,7 +14,7 @@ from telegram.ext import (
     filters,
 )
 from telegram import Update
-
+from openai import OpenAI
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -115,13 +115,10 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def interpret_message_with_gpt(message: str) -> str:
-    headers = {
-        "Authorization": f"Bearer {OPENAI_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": GPT_MODEL,
-        "messages": [
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model=GPT_MODEL,
+        messages=[
             {"role": "system", "content": (
                 "You are an assistant that extracts structured sales and expenses data from flower shop messages. "
                 "Each message may include sales in free-text form. Your output must be a JSON object with this structure:\n\n"
@@ -143,11 +140,9 @@ def interpret_message_with_gpt(message: str) -> str:
             )},
             {"role": "user", "content": message}
         ],
-        "temperature": 0.2
-    }
-    resp = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=data)
-    resp.raise_for_status()
-    return resp.json()['choices'][0]['message']['content']
+        temperature=0.2
+    )
+    return response.choices[0].message.content
 
 
 def insert_to_bigquery(row: dict):
