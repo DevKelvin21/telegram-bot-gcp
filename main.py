@@ -22,7 +22,11 @@ BQ_PROJECT = os.getenv("BQ_PROJECT")
 BQ_DATASET = os.getenv("BQ_DATASET")
 BQ_TABLE = os.getenv("BQ_TABLE")
 GPT_MODEL = os.getenv("GPT_MODEL", "gpt-3.5-turbo")
-ALLOWED_USERS = set(map(int, os.getenv("ALLOWED_USER_IDS", "").split(",")))
+allowed_user_ids_str = os.getenv("ALLOWED_USER_IDS", "").strip()
+if allowed_user_ids_str:
+    ALLOWED_USERS = set(map(int, filter(None, allowed_user_ids_str.split(","))))
+else:
+    ALLOWED_USERS = set()
 
 @http
 def telegram_bot(request):
