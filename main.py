@@ -93,7 +93,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message.startswith("/cierre"):
         db = firestore.Client()
         owner_doc = db.collection("allowedUserIDs").where("Role", "==", "Owner").stream()
-        owner_ids = [doc.to_dict()["ID"] for doc in owner_doc]
+        owner_ids = [int(doc.to_dict()["ID"]) for doc in owner_doc if "ID" in doc.to_dict()]
         if user_id not in owner_ids:
             await context.bot.send_message(
                 chat_id=chat_id,
