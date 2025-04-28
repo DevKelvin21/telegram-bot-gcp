@@ -90,6 +90,69 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
         return
 
+    if message.startswith("/cierre"):
+        db = firestore.Client()
+        owner_doc = db.collection("allowedUserIDs").where("Role", "==", "Owner").stream()
+        owner_ids = [doc.to_dict()["ID"] for doc in owner_doc]
+        if user_id not in owner_ids:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="No tienes permisos para realizar esta operación."
+            )
+            return
+
+        client = bigquery.Client()
+        query = f"""
+        WITH ventas_efectivo AS (
+          SELECT
+            SUM(total_sale_price) AS efectivo_sales
+          FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+          WHERE payment_method = 'cash'
+            AND date = CURRENT_DATE()
+        ),
+        ventas_transferencia AS (
+          SELECT
+            SUM(total_sale_price) AS transfer_sales
+          FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+          WHERE payment_method = 'bank_transfer'
+            AND date = CURRENT_DATE()
+        ),
+        gastos_totales AS (
+          SELECT
+            SUM(expense.amount) AS total_expenses
+          FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`,
+          UNNEST(expenses) AS expense
+          WHERE date = CURRENT_DATE()
+        )
+        SELECT
+          (SELECT efectivo_sales FROM ventas_efectivo) AS efectivo_sales,
+          (SELECT transfer_sales FROM ventas_transferencia) AS transfer_sales,
+          (SELECT total_expenses FROM gastos_totales) AS total_expenses
+        """
+        query_job = client.query(query)
+        results = query_job.result()
+
+        for row in results:
+            efectivo_sales = row.efectivo_sales if row.efectivo_sales is not None else 0
+            transfer_sales = row.transfer_sales if row.transfer_sales is not None else 0
+            total_expenses = row.total_expenses if row.total_expenses is not None else 0
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"🔔 Resumen del cierre de caja:\n\n"
+                     f"💵 Ventas en efectivo: ${efectivo_sales}\n"
+                     f"🏦 Ventas por transferencia bancaria: ${transfer_sales}\n"
+                     f"💰 Gastos del día: ${total_expenses}\n"
+            )
+
+        log_to_bigquery({
+            "timestamp": current_utc_iso(),
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "operation_type": "closure_report",
+            "message_content": message
+        })
+        return
+
     try:
         gpt_response = interpret_message_with_gpt(message)
         structured_data = json.loads(gpt_response)
