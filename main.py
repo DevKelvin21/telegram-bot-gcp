@@ -108,7 +108,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             safe_delete(transaction_id)
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"✅ Transacción {transaction_id} eliminada correctamente."
+                text=f"✅ *ID de Transacción:*\n` {transaction_id}` eliminada correctamente.",
+                    parse_mode="MarkdownV2"
             )
             log_to_bigquery({
                 "timestamp": current_cst_iso(),
@@ -133,7 +134,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             text=f"🔔 Notificación de administración:\n\n"
                                  f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
                                  f"Acción: {'Eliminar' if command.startswith('eliminar') else 'Editar'}\n"
-                                 f"🆔 ID de Transacción: {transaction_id}"
+                                 f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
+                                parse_mode="MarkdownV2"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -162,7 +164,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"✅ Transacción {transaction_id} actualizada correctamente."
+                text=f"✅ *ID de Transacción:*\n` {transaction_id}` actualizada correctamente.",
+                    parse_mode="MarkdownV2"
             )
             log_to_bigquery({
                 "timestamp": current_cst_iso(),
@@ -187,7 +190,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             text=f"🔔 Notificación de administración:\n\n"
                                  f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
                                  f"Acción: {'Eliminar' if command.startswith('eliminar') else 'Editar'}\n"
-                                 f"🆔 ID de Transacción: {transaction_id}"
+                                 f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
+                                parse_mode="MarkdownV2"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -289,7 +293,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"Registro guardado correctamente:\n{json.dumps(structured_data, indent=2)}\n\n"
-                f"🆔 ID de Transacción: {structured_data['transaction_id']}"
+                 f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
+                parse_mode="MarkdownV2"
         )
 
         config = load_bot_config()
@@ -304,7 +309,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(
                     chat_id=owner_id,
                     text=f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
-                        f"🆔 ID de Transacción: {structured_data['transaction_id']}"
+                         f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
+                        parse_mode="MarkdownV2"
                 )
     except Exception as e:
         await context.bot.send_message(
