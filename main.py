@@ -119,25 +119,38 @@ def interpret_message_with_gpt(message: str) -> str:
     response = client.chat.completions.create(
         model=GPT_MODEL,
         messages=[
-            {"role": "system", "content": (
-                "You are an assistant that extracts structured sales and expenses data from flower shop messages. "
-                "Each message may include sales in free-text form. Your output must be a JSON object with this structure:\n\n"
-                "{\n"
-                "  \"date\": \"YYYY-MM-DD\",  // If not provided, use today's date\n"
-                "  \"sales\": [\n"
-                "    {\n"
-                "      \"item\": \"string\",  // Item name or description\n"
-                "      \"quantity\": null,   // null if quantity not explicitly given\n"
-                "      \"unit_price\": null, // null if not clearly provided\n"
-                "      \"total_price\": float // extracted from the message\n"
-                "    }\n"
-                "  ],\n"
-                "  \"expenses\": [\n"
-                "    {\"description\": \"string\", \"amount\": float}\n"
-                "  ]\n"
-                "}\n\n"
-                "If no unit_price or quantity is provided, keep them as null. Only output valid JSON."
-            )},
+            {
+                "role": "system",
+                "content": (
+                    "You are an assistant that extracts structured sales and expenses data from flower shop messages.\n\n"
+                    "Each message may include sales in free-text form.\n\n"
+                    "Your output must be a JSON object with this structure:\n\n"
+                    "{\n"
+                    "  \"date\": \"YYYY-MM-DD\",  // If not provided, use today's date\n"
+                    "  \"total_sale_price\": float, // Sum of all sales in the message\n"
+                    "  \"payment_method\": \"cash\" | \"bank_transfer\", // Payment method if indicated, otherwise cash\n"
+                    "  \"sales\": [\n"
+                    "    {\n"
+                    "      \"item\": \"string\",\n"
+                    "      \"quantity\": null,\n"
+                    "      \"unit_price\": null\n"
+                    "    }\n"
+                    "  ],\n"
+                    "  \"expenses\": [\n"
+                    "    {\n"
+                    "      \"description\": \"string\",\n"
+                    "      \"amount\": float\n"
+                    "    }\n"
+                    "  ]\n"
+                    "}\n\n"
+                    "Rules:\n"
+                    "- If no sales are recorded, \"total_sale_price\" must be null.\n"
+                    "- If no payment method is mentioned, set \"payment_method\" to cash.\n"
+                    "- If \"cash\" is mentioned, set \"payment_method\" to \"cash\".\n"
+                    "- If \"bank transfer\", \"transfer\", \"card\", or \"bank\" is mentioned, set \"payment_method\" to \"bank_transfer\".\n"
+                    "- Always output valid JSON without extra text."
+                )
+            },
             {"role": "user", "content": message}
         ],
         temperature=0.2
