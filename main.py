@@ -107,7 +107,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             client = bigquery.Client()
             delete_query = f"""
-            DELETE FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+            UPDATE `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+            SET is_deleted = TRUE
             WHERE transaction_id = @transaction_id
             """
             job_config = bigquery.QueryJobConfig(
@@ -152,7 +153,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             client = bigquery.Client()
 
             delete_query = f"""
-            DELETE FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+            UPDATE `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+            SET is_deleted = TRUE
             WHERE transaction_id = @transaction_id
             """
             delete_job_config = bigquery.QueryJobConfig(
@@ -192,6 +194,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
           FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
           WHERE payment_method = 'cash'
             AND date = CURRENT_DATE()
+            AND (is_deleted IS NULL OR is_deleted = FALSE)
         ),
         ventas_transferencia AS (
           SELECT
@@ -199,6 +202,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
           FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
           WHERE payment_method = 'bank_transfer'
             AND date = CURRENT_DATE()
+            AND (is_deleted IS NULL OR is_deleted = FALSE)
         ),
         gastos_totales AS (
           SELECT
@@ -206,6 +210,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
           FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`,
           UNNEST(expenses) AS expense
           WHERE date = CURRENT_DATE()
+            AND (is_deleted IS NULL OR is_deleted = FALSE)
         )
         SELECT
           (SELECT efectivo_sales FROM ventas_efectivo) AS efectivo_sales,
