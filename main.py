@@ -92,6 +92,97 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })
         return
 
+    # Lowercase for easier matching
+    command = message.strip().lower()
+
+    if command.startswith("eliminar"):
+        parts = message.split()
+        if len(parts) != 2:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="Formato incorrecto. Usa: eliminar <transaction_id>"
+            )
+            return
+        transaction_id = parts[1]
+        try:
+            client = bigquery.Client()
+            delete_query = f"""
+            DELETE FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+            WHERE transaction_id = @transaction_id
+            """
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("transaction_id", "STRING", transaction_id)
+                ]
+            )
+            client.query(delete_query, job_config=job_config).result()
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"✅ Transacción {transaction_id} eliminada correctamente."
+            )
+            log_to_bigquery({
+                "timestamp": current_utc_iso(),
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "operation_type": "delete_transaction",
+                "message_content": message,
+                "user_name": update.effective_user.full_name
+            })
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ Error al eliminar: {str(e)}"
+            )
+        return
+
+    if command.startswith("editar"):
+        parts = message.split(maxsplit=2)
+        if len(parts) != 3:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="Formato incorrecto. Usa: editar <transaction_id> <nuevo mensaje>"
+            )
+            return
+        transaction_id, new_text = parts[1], parts[2]
+        try:
+            gpt_response = interpret_message_with_gpt(new_text)
+            new_data = json.loads(gpt_response)
+            new_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
+            new_data["transaction_id"] = transaction_id
+            client = bigquery.Client()
+
+            delete_query = f"""
+            DELETE FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+            WHERE transaction_id = @transaction_id
+            """
+            delete_job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("transaction_id", "STRING", transaction_id)
+                ]
+            )
+            client.query(delete_query, job_config=delete_job_config).result()
+
+            insert_to_bigquery(new_data)
+
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"✅ Transacción {transaction_id} actualizada correctamente."
+            )
+            log_to_bigquery({
+                "timestamp": current_utc_iso(),
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "operation_type": "edit_transaction",
+                "message_content": message,
+                "user_name": update.effective_user.full_name
+            })
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ Error al editar: {str(e)}"
+            )
+        return
+
     if message.startswith("/cierre"):
         client = bigquery.Client()
         query = f"""
