@@ -21,7 +21,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 BQ_PROJECT = os.getenv("BQ_PROJECT")
 BQ_DATASET = os.getenv("BQ_DATASET")
 BQ_TABLE = os.getenv("BQ_TABLE")
-GPT_MODEL = os.getenv("GPT_MODEL", "gpt-3.5-turbo")
 
 
 def load_allowed_user_ids():
@@ -32,6 +31,13 @@ def load_allowed_user_ids():
         data = doc.to_dict()
         allowed_users.add(int(data["ID"]))
     return allowed_users
+
+def load_bot_config():
+    db = firestore.Client()
+    doc = db.collection("configs").document("config").get()
+    if not doc.exists:
+        raise RuntimeError("Config document not found in Firestore.")
+    return doc.to_dict()
 
 @http
 def telegram_bot(request):
@@ -108,6 +114,20 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id=chat_id,
             text=f"Registro guardado correctamente:\n{json.dumps(structured_data, indent=2)}"
         )
+
+        config = load_bot_config()
+        if config.get("liveNotifications"):
+            db = firestore.Client()
+            owner_doc = next(
+                (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
+                None
+            )
+            if owner_doc:
+                owner_id = int(owner_doc["ID"])
+                await context.bot.send_message(
+                    chat_id=owner_id,
+                    text=f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{json.dumps(structured_data, indent=2)}"
+                )
     except Exception as e:
         await context.bot.send_message(
             chat_id=chat_id,
@@ -116,9 +136,11 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def interpret_message_with_gpt(message: str) -> str:
+    config = load_bot_config()
+    model = config.get("gptModel", "gpt-3.5-turbo")
     client = OpenAI(api_key=OPENAI_API_KEY)
     response = client.chat.completions.create(
-        model=GPT_MODEL,
+        model=model,
         messages=[
             {
                 "role": "system",
