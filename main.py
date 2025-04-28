@@ -2,6 +2,7 @@ import asyncio
 import os
 import json
 import requests
+import uuid
 from datetime import datetime, timezone, timedelta
 from google.cloud import bigquery
 from google.cloud import firestore
@@ -168,7 +169,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"Registro guardado correctamente:\n{json.dumps(structured_data, indent=2)}"
+            text=f"Registro guardado correctamente:\n{json.dumps(structured_data, indent=2)}\n\n"
+                f"🆔 ID de Transacción: {structured_data['transaction_id']}"
         )
 
         config = load_bot_config()
@@ -182,7 +184,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 owner_id = int(owner_doc["ID"])
                 await context.bot.send_message(
                     chat_id=owner_id,
-                    text=f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}"
+                    text=f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
+                        f"🆔 ID de Transacción: {structured_data['transaction_id']}"
                 )
     except Exception as e:
         await context.bot.send_message(
@@ -239,6 +242,7 @@ def interpret_message_with_gpt(message: str) -> str:
 def insert_to_bigquery(row: dict):
     client = bigquery.Client()
     table_id = f"{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}"
+    row.setdefault("transaction_id", str(uuid.uuid4()))
     errors = client.insert_rows_json(table_id, [row])
     if errors:
         raise RuntimeError(f"BigQuery insert errors: {errors}")
