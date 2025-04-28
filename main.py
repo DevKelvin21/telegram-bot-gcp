@@ -143,7 +143,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"❌ Error al eliminar: {str(e)}"
+                text=f"❌ Error al eliminar: {escape_markdown(str(e))}",
+                parse_mode="MarkdownV2"
             )
         return
 
@@ -199,7 +200,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"❌ Error al editar: {str(e)}"
+                text=f"❌ Error al editar: {escape_markdown(str(e))}",
+                parse_mode="MarkdownV2"
             )
         return
 
