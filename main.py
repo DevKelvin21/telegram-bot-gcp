@@ -201,34 +201,43 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if command.startswith("cierre"):
         client = bigquery.Client()
         query = f"""
-        WITH ventas_efectivo AS (
-          SELECT
+        WITH latest_transactions AS (
+        SELECT
+            *,
+            ROW_NUMBER() OVER(PARTITION BY transaction_id ORDER BY date DESC) AS rn
+        FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+        ),
+        ventas_efectivo AS (
+        SELECT
             SUM(total_sale_price) AS efectivo_sales
-          FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
-          WHERE payment_method = 'cash'
+        FROM latest_transactions
+        WHERE payment_method = 'cash'
+            AND rn = 1
             AND date = CURRENT_DATE()
             AND (is_deleted IS NULL OR is_deleted = FALSE)
         ),
         ventas_transferencia AS (
-          SELECT
+        SELECT
             SUM(total_sale_price) AS transfer_sales
-          FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
-          WHERE payment_method = 'bank_transfer'
+        FROM latest_transactions
+        WHERE payment_method = 'bank_transfer'
+            AND rn = 1
             AND date = CURRENT_DATE()
             AND (is_deleted IS NULL OR is_deleted = FALSE)
         ),
         gastos_totales AS (
-          SELECT
+        SELECT
             SUM(expense.amount) AS total_expenses
-          FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`,
-          UNNEST(expenses) AS expense
-          WHERE date = CURRENT_DATE()
+        FROM latest_transactions,
+        UNNEST(expenses) AS expense
+        WHERE rn = 1
+            AND date = CURRENT_DATE()
             AND (is_deleted IS NULL OR is_deleted = FALSE)
         )
         SELECT
-          (SELECT efectivo_sales FROM ventas_efectivo) AS efectivo_sales,
-          (SELECT transfer_sales FROM ventas_transferencia) AS transfer_sales,
-          (SELECT total_expenses FROM gastos_totales) AS total_expenses
+        (SELECT efectivo_sales FROM ventas_efectivo) AS efectivo_sales,
+        (SELECT transfer_sales FROM ventas_transferencia) AS transfer_sales,
+        (SELECT total_expenses FROM gastos_totales) AS total_expenses
         """
         query_job = client.query(query)
         results = query_job.result()
