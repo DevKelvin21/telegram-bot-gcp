@@ -227,9 +227,10 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=f"🔔 Resumen del cierre de caja:\n\n"
-                     f"💵 Ventas en efectivo: ${efectivo_sales}\n"
                      f"🏦 Ventas por transferencia bancaria: ${transfer_sales}\n"
+                     f"💵 Ventas en efectivo: ${efectivo_sales}\n"
                      f"💰 Gastos del día: ${total_expenses}\n"
+                     f"💵 Total efectivo en caja: ${efectivo_sales - total_expenses}\n\n"
             )
 
         log_to_bigquery({
