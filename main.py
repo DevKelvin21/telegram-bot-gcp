@@ -192,7 +192,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 owner_id = int(owner_doc["ID"])
                 await context.bot.send_message(
                     chat_id=owner_id,
-                    text=f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{json.dumps(structured_data, indent=2)}"
+                    text=f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}"
                 )
     except Exception as e:
         await context.bot.send_message(
