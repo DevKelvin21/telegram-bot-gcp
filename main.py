@@ -34,7 +34,7 @@ def load_allowed_user_ids():
 
 def load_bot_config():
     db = firestore.Client()
-    doc = db.collection("configs").document("config").get()
+    doc = db.collection("configs").document("telegram-bot").get()
     if not doc.exists:
         raise RuntimeError("Config document not found in Firestore.")
     return doc.to_dict()
