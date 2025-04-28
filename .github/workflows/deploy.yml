@@ -33,6 +33,8 @@ jobs:
           --runtime python311 \
           --trigger-http \
           --no-gen2 \
+          --memory 512MB \
+          --timeout 540s \
           --allow-unauthenticated \
           --entry-point telegram_bot \
           --region us-central1 \

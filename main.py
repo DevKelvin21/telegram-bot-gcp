@@ -129,6 +129,25 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "message_content": message,
                 "user_name": update.effective_user.full_name
             })
+            try:
+                config = load_bot_config()
+                if config.get("liveNotifications"):
+                    db = firestore.Client()
+                    owner_doc = next(
+                        (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
+                        None
+                    )
+                    if owner_doc:
+                        owner_id = int(owner_doc["ID"])
+                        await context.bot.send_message(
+                            chat_id=owner_id,
+                            text=f"🔔 Notificación de administración:\n\n"
+                                 f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
+                                 f"Acción: {'Eliminar' if command.startswith('eliminar') else 'Editar'}\n"
+                                 f"🆔 ID de Transacción: {transaction_id}"
+                        )
+            except Exception as notify_error:
+                print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -178,6 +197,25 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "message_content": message,
                 "user_name": update.effective_user.full_name
             })
+            try:
+                config = load_bot_config()
+                if config.get("liveNotifications"):
+                    db = firestore.Client()
+                    owner_doc = next(
+                        (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
+                        None
+                    )
+                    if owner_doc:
+                        owner_id = int(owner_doc["ID"])
+                        await context.bot.send_message(
+                            chat_id=owner_id,
+                            text=f"🔔 Notificación de administración:\n\n"
+                                 f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
+                                 f"Acción: {'Eliminar' if command.startswith('eliminar') else 'Editar'}\n"
+                                 f"🆔 ID de Transacción: {transaction_id}"
+                        )
+            except Exception as notify_error:
+                print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
             await context.bot.send_message(
                 chat_id=chat_id,
