@@ -386,36 +386,34 @@ def current_cst_iso():
 
 def safe_delete(transaction_id: str):
     client = bigquery.Client()
-    try:
-        delete_query = f"""
-        UPDATE `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
-        SET is_deleted = TRUE
-        WHERE transaction_id = @transaction_id
-        """
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("transaction_id", "STRING", transaction_id)
-            ]
-        )
-        client.query(delete_query, job_config=job_config).result()
-    except Exception as e:
-        if "streaming buffer" in str(e).lower():
-            shadow_record = {
-                "transaction_id": transaction_id,
-                "date": datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"),
-                "total_sale_price": None,
-                "payment_method": None,
-                "sales": [],
-                "expenses": [],
-                "is_deleted": True
-            }
-            insert_to_bigquery(shadow_record)
-        else:
-            raise e
+    table_id = f"{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}"
+
+    query = f"""
+    SELECT *
+    FROM `{table_id}`
+    WHERE transaction_id = @transaction_id
+      AND operation IS NULL
+    LIMIT 1
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("transaction_id", "STRING", transaction_id)
+        ]
+    )
+    result = client.query(query, job_config=job_config).result()
+    original = list(result)[0]
+
+    shadow = dict(original)
+    shadow["operation"] = "deleted"
+    shadow["is_deleted"] = True
+    shadow["date"] = datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d")
+    insert_to_bigquery(shadow)
 
 def safe_edit(transaction_id: str, new_data: dict):
     safe_delete(transaction_id)
 
     new_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
     new_data["transaction_id"] = transaction_id
+    new_data["operation"] = None
+    new_data["is_deleted"] = False
     insert_to_bigquery(new_data)
