@@ -2,6 +2,7 @@ import asyncio
 import os
 import json
 import requests
+import re
 import uuid
 from datetime import datetime, timezone, timedelta
 from google.cloud import bigquery
@@ -108,8 +109,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             safe_delete(transaction_id)
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"✅ *ID de Transacción:*\n` {transaction_id}` eliminada correctamente.",
-                    parse_mode="MarkdownV2"
+                text=f"✅ *ID de Transacción:*\n`{escape_markdown(transaction_id)}` eliminada correctamente.",
+                parse_mode="MarkdownV2"
             )
             log_to_bigquery({
                 "timestamp": current_cst_iso(),
@@ -132,10 +133,10 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await context.bot.send_message(
                             chat_id=owner_id,
                             text=f"🔔 Notificación de administración:\n\n"
-                                 f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
+                                 f"Operación realizada por {escape_markdown(update.effective_user.full_name)} (ID: {user_id}).\n"
                                  f"Acción: {'Eliminar' if command.startswith('eliminar') else 'Editar'}\n"
-                                 f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
-                                parse_mode="MarkdownV2"
+                                 f"🆔 *ID de Transacción:*\n`{escape_markdown(transaction_id)}`",
+                            parse_mode="MarkdownV2"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -164,8 +165,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=f"✅ *ID de Transacción:*\n` {transaction_id}` actualizada correctamente.",
-                    parse_mode="MarkdownV2"
+                text=f"✅ *ID de Transacción:*\n`{escape_markdown(transaction_id)}` actualizada correctamente.",
+                parse_mode="MarkdownV2"
             )
             log_to_bigquery({
                 "timestamp": current_cst_iso(),
@@ -188,10 +189,10 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await context.bot.send_message(
                             chat_id=owner_id,
                             text=f"🔔 Notificación de administración:\n\n"
-                                 f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
+                                 f"Operación realizada por {escape_markdown(update.effective_user.full_name)} (ID: {user_id}).\n"
                                  f"Acción: {'Eliminar' if command.startswith('eliminar') else 'Editar'}\n"
-                                 f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
-                                parse_mode="MarkdownV2"
+                                 f"🆔 *ID de Transacción:*\n`{escape_markdown(transaction_id)}`",
+                            parse_mode="MarkdownV2"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -287,11 +288,13 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "user_name": update.effective_user.full_name
         })
 
+        escaped_json = escape_markdown(json.dumps(structured_data, indent=2))
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"Registro guardado correctamente\n\n"
-                 f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
-                parse_mode="MarkdownV2"
+                 f"```json\n{escaped_json}\n```"
+                 f"\n\n🆔 *ID de Transacción:*\n`{escape_markdown(structured_data['transaction_id'])}`",
+            parse_mode="MarkdownV2"
         )
 
         config = load_bot_config()
@@ -305,9 +308,9 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 owner_id = int(owner_doc["ID"])
                 await context.bot.send_message(
                     chat_id=owner_id,
-                    text=f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
-                         f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
-                        parse_mode="MarkdownV2"
+                    text=f"🔔 Nueva operación registrada por {escape_markdown(update.effective_user.full_name)} (ID: {user_id}):\n\n{escape_markdown(message)}\n\n"
+                         f"🆔 *ID de Transacción:*\n`{escape_markdown(structured_data['transaction_id'])}`",
+                    parse_mode="MarkdownV2"
                 )
     except Exception as e:
         await context.bot.send_message(
@@ -414,3 +417,10 @@ def safe_edit(transaction_id: str, new_data: dict):
     new_data["operation"] = None
     new_data["is_deleted"] = False
     insert_to_bigquery(new_data)
+
+def escape_markdown(text: str) -> str:
+    """
+    Escape Telegram MarkdownV2 reserved characters.
+    """
+    escape_chars = r"_*[]()~`>#+-=|{}.!"
+    return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
