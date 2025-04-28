@@ -206,38 +206,35 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         client = bigquery.Client()
         query = f"""
         WITH latest_transactions AS (
-        SELECT
-            *,
-            ROW_NUMBER() OVER(PARTITION BY transaction_id ORDER BY date DESC) AS rn
+        SELECT *
         FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
-        ),
-        ventas_efectivo AS (
+        WHERE operation IS NULL
+        )
+
+        , ventas_efectivo AS (
         SELECT
             SUM(total_sale_price) AS efectivo_sales
         FROM latest_transactions
         WHERE payment_method = 'cash'
-            AND rn = 1
             AND date = CURRENT_DATE()
-            AND (is_deleted IS NULL OR is_deleted = FALSE)
-        ),
-        ventas_transferencia AS (
+        )
+
+        , ventas_transferencia AS (
         SELECT
             SUM(total_sale_price) AS transfer_sales
         FROM latest_transactions
         WHERE payment_method = 'bank_transfer'
-            AND rn = 1
             AND date = CURRENT_DATE()
-            AND (is_deleted IS NULL OR is_deleted = FALSE)
-        ),
-        gastos_totales AS (
+        )
+
+        , gastos_totales AS (
         SELECT
             SUM(expense.amount) AS total_expenses
         FROM latest_transactions,
         UNNEST(expenses) AS expense
-        WHERE rn = 1
-            AND date = CURRENT_DATE()
-            AND (is_deleted IS NULL OR is_deleted = FALSE)
+        WHERE date = CURRENT_DATE()
         )
+
         SELECT
         (SELECT efectivo_sales FROM ventas_efectivo) AS efectivo_sales,
         (SELECT transfer_sales FROM ventas_transferencia) AS transfer_sales,
