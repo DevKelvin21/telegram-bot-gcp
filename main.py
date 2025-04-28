@@ -183,7 +183,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         return
 
-    if message.startswith("/cierre"):
+    if command.startswith("cierre"):
         client = bigquery.Client()
         query = f"""
         WITH ventas_efectivo AS (
