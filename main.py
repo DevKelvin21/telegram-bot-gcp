@@ -2,7 +2,7 @@ import asyncio
 import os
 import json
 import requests
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from google.cloud import bigquery
 from google.cloud import firestore
 from functions_framework import http
@@ -93,6 +93,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text="No se encontró ninguna venta ni gasto en el mensaje."
             )
             return
+        structured_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
         insert_to_bigquery(structured_data)
 
         log_to_bigquery({
@@ -126,7 +127,6 @@ def interpret_message_with_gpt(message: str) -> str:
                     "Each message may include sales in free-text form.\n\n"
                     "Your output must be a JSON object with this structure:\n\n"
                     "{\n"
-                    "  \"date\": \"YYYY-MM-DD\",  // If not provided, use today's date\n"
                     "  \"total_sale_price\": float, // Sum of all sales in the message\n"
                     "  \"payment_method\": \"cash\" | \"bank_transfer\", // Payment method if indicated, otherwise cash\n"
                     "  \"sales\": [\n"
