@@ -86,7 +86,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "user_id": user_id,
             "chat_id": chat_id,
             "operation_type": "unauthorized_access",
-            "message_content": message
+            "message_content": message,
+            "user_name": update.effective_user.full_name
         })
         return
 
@@ -149,7 +150,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "user_id": user_id,
             "chat_id": chat_id,
             "operation_type": "closure_report",
-            "message_content": message
+            "message_content": message,
+            "user_name": update.effective_user.full_name
         })
         return
 
@@ -170,7 +172,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "user_id": user_id,
             "chat_id": chat_id,
             "operation_type": "data_insert",
-            "message_content": message
+            "message_content": message,
+            "user_name": update.effective_user.full_name
         })
 
         await context.bot.send_message(
