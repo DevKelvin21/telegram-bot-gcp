@@ -317,7 +317,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"Hubo un error al procesar el mensaje: {str(e)}"
+            text=f"Hubo un error al procesar el mensaje: {escape_markdown(str(e))}",
+            parse_mode="MarkdownV2"
         )
 
 
