@@ -289,7 +289,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await context.bot.send_message(
             chat_id=chat_id,
-            text=f"Registro guardado correctamente:\n{json.dumps(structured_data, indent=2)}\n\n"
+            text=f"Registro guardado correctamente\n\n"
                  f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`",
                 parse_mode="MarkdownV2"
         )
