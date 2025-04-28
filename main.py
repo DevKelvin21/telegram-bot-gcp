@@ -83,7 +83,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
         log_to_bigquery({
-            "timestamp": current_utc_iso(),
+            "timestamp": current_cst_iso(),
             "user_id": user_id,
             "chat_id": chat_id,
             "operation_type": "unauthorized_access",
@@ -111,7 +111,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=f"✅ Transacción {transaction_id} eliminada correctamente."
             )
             log_to_bigquery({
-                "timestamp": current_utc_iso(),
+                "timestamp": current_cst_iso(),
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "operation_type": "delete_transaction",
@@ -165,7 +165,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=f"✅ Transacción {transaction_id} actualizada correctamente."
             )
             log_to_bigquery({
-                "timestamp": current_utc_iso(),
+                "timestamp": current_cst_iso(),
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "operation_type": "edit_transaction",
@@ -247,7 +247,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
         log_to_bigquery({
-            "timestamp": current_utc_iso(),
+            "timestamp": current_cst_iso(),
             "user_id": user_id,
             "chat_id": chat_id,
             "operation_type": "closure_report",
@@ -269,7 +269,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         insert_to_bigquery(structured_data)
 
         log_to_bigquery({
-            "timestamp": current_utc_iso(),
+            "timestamp": current_cst_iso(),
             "user_id": user_id,
             "chat_id": chat_id,
             "operation_type": "data_insert",
@@ -366,8 +366,8 @@ def log_to_bigquery(log_entry: dict):
         print(f"Audit log insert errors: {errors}")
 
 
-def current_utc_iso():
-    return datetime.now(timezone.utc).isoformat()
+def current_cst_iso():
+    return datetime.now(timezone(timedelta(hours=-6))).isoformat()
 
 def safe_delete(transaction_id: str):
     client = bigquery.Client()
