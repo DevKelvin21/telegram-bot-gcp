@@ -105,18 +105,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         transaction_id = parts[1]
         try:
-            client = bigquery.Client()
-            delete_query = f"""
-            UPDATE `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
-            SET is_deleted = TRUE
-            WHERE transaction_id = @transaction_id
-            """
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("transaction_id", "STRING", transaction_id)
-                ]
-            )
-            client.query(delete_query, job_config=job_config).result()
+            safe_delete(transaction_id)
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=f"✅ Transacción {transaction_id} eliminada correctamente."
@@ -169,21 +158,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             new_data = json.loads(gpt_response)
             new_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
             new_data["transaction_id"] = transaction_id
-            client = bigquery.Client()
-
-            delete_query = f"""
-            UPDATE `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
-            SET is_deleted = TRUE
-            WHERE transaction_id = @transaction_id
-            """
-            delete_job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("transaction_id", "STRING", transaction_id)
-                ]
-            )
-            client.query(delete_query, job_config=delete_job_config).result()
-
-            insert_to_bigquery(new_data)
+            safe_edit(transaction_id, new_data)
 
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -393,3 +368,39 @@ def log_to_bigquery(log_entry: dict):
 
 def current_utc_iso():
     return datetime.now(timezone.utc).isoformat()
+
+def safe_delete(transaction_id: str):
+    client = bigquery.Client()
+    try:
+        delete_query = f"""
+        UPDATE `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
+        SET is_deleted = TRUE
+        WHERE transaction_id = @transaction_id
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("transaction_id", "STRING", transaction_id)
+            ]
+        )
+        client.query(delete_query, job_config=job_config).result()
+    except Exception as e:
+        if "streaming buffer" in str(e).lower():
+            shadow_record = {
+                "transaction_id": transaction_id,
+                "date": datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"),
+                "total_sale_price": None,
+                "payment_method": None,
+                "sales": [],
+                "expenses": [],
+                "is_deleted": True
+            }
+            insert_to_bigquery(shadow_record)
+        else:
+            raise e
+
+def safe_edit(transaction_id: str, new_data: dict):
+    safe_delete(transaction_id)
+
+    new_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
+    new_data["transaction_id"] = transaction_id
+    insert_to_bigquery(new_data)
