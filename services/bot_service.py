@@ -93,9 +93,9 @@ class BotService:
                             context.bot,
                             owner_id,
                             f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id}).\n"
+                            f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
                             f"Acción: Eliminar\n"
-                            f"🆔 *ID de Transacción:*\n`{transaction_id}`"
+                            f"ID de Transacción: {transaction_id}"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -115,7 +115,7 @@ class BotService:
         try:
             gpt_response = interpret_message_with_gpt(new_text)
             new_data = json.loads(gpt_response)
-            new_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
+            new_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
             new_data["transaction_id"] = transaction_id
             safe_edit(transaction_id, new_data)
 
@@ -146,9 +146,9 @@ class BotService:
                             context.bot,
                             owner_id,
                             f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id})\n"
+                            f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
                             f"Acción: Editar\n"
-                            f"🆔 *ID de Transacción:*\n`{transaction_id}`"
+                            f"ID de Transacción: {transaction_id}"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -158,7 +158,7 @@ class BotService:
 
     async def _handle_closure_report(self, update, context, chat_id, user_id):
         try:
-            today = datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d")
+            today = datetime.now(self.cst).strftime("%Y-%m-%d")
             report = get_closure_report_by_date(today)
             if not report:
                 await context.bot.send_message(
@@ -201,7 +201,7 @@ class BotService:
                             context.bot,
                             owner_id,
                             f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id})\n"
+                            f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
                             f"Acción: Cierre de caja\n"
                             f"Fecha: {today}"
                         )
@@ -221,7 +221,7 @@ class BotService:
                     text="No se encontró ninguna venta ni gasto en el mensaje."
                 )
                 return
-            structured_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
+            structured_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
             insert_to_bigquery(structured_data)
 
             log_to_bigquery({
@@ -253,8 +253,8 @@ class BotService:
                     await safe_send_message(
                         context.bot,
                         owner_id,
-                        f"🔔 Nueva operación registrada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id}):\n\n{escape_user_text(message)}\n\n"
-                        f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`"
+                        f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
+                        f"ID de Transacción: {structured_data['transaction_id']}"
                     )
         except Exception as e:
             await safe_send_message(context.bot, chat_id, f"❌ Hubo un error al procesar el mensaje:\n{str(e)}", escape_user_input=True)
