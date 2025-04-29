@@ -237,6 +237,7 @@ class BotService:
                 chat_id,
                 f"Registro guardado correctamente\n\n"
                 f"{json.dumps(structured_data, indent=2)}\n\n"
+                # Avoid using Markdown formatting here to ensure compatibility with the message rendering system
                 f"ID de Transacción:\n{structured_data['transaction_id']}"
             )
 
