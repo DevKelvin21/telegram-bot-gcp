@@ -93,9 +93,9 @@ class BotService:
                             context.bot,
                             owner_id,
                             f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id}).\n"
-                            f"Acción: Eliminar\n"
-                            f"🆔 *ID de Transacción:*\n`{transaction_id}`"
+                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {escape_user_text(str(user_id))}).\n"
+                            f"Acción: {escape_user_text('Eliminar')}\n"
+                            f"🆔 *ID de Transacción:*\n`{escape_user_text(transaction_id)}`"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -146,9 +146,9 @@ class BotService:
                             context.bot,
                             owner_id,
                             f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id})\n"
-                            f"Acción: Editar\n"
-                            f"🆔 *ID de Transacción:*\n`{transaction_id}`"
+                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {escape_user_text(str(user_id))})\n"
+                            f"Acción: {escape_user_text('Editar')}\n"
+                            f"🆔 *ID de Transacción:*\n`{escape_user_text(transaction_id)}`"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -201,9 +201,9 @@ class BotService:
                             context.bot,
                             owner_id,
                             f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id})\n"
-                            f"Acción: Cierre de caja\n"
-                            f"Fecha: {today}"
+                            f"Operación realizada por {escape_user_text(update.effective_user.full_name)} (ID: {escape_user_text(str(user_id))})\n"
+                            f"Acción: {escape_user_text('Cierre de caja')}\n"
+                            f"Fecha: {escape_user_text(today)}"
                         )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
@@ -253,8 +253,8 @@ class BotService:
                     await safe_send_message(
                         context.bot,
                         owner_id,
-                        f"🔔 Nueva operación registrada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id}):\n\n{escape_user_text(message)}\n\n"
-                        f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`"
+                        f"🔔 Nueva operación registrada por {escape_user_text(update.effective_user.full_name)} (ID: {escape_user_text(str(user_id))}):\n\n{escape_user_text(message)}\n\n"
+                        f"🆔 *ID de Transacción:*\n`{escape_user_text(structured_data['transaction_id'])}`"
                     )
         except Exception as e:
             await safe_send_message(context.bot, chat_id, f"❌ Hubo un error al procesar el mensaje:\n{str(e)}", escape_user_input=True)
