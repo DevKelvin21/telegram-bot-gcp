@@ -141,7 +141,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Error al eliminar:\n{escape_user_text(str(e))}")
+            await safe_send_message(context.bot, chat_id, f"❌ Error al eliminar:\n{str(e)}", escape_user_input=True)
         return
 
     if command.startswith("editar"):
@@ -194,7 +194,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Error al editar:\n{escape_user_text(str(e))}")
+            await safe_send_message(context.bot, chat_id, f"❌ Error al editar:\n{str(e)}", escape_user_input=True)
         return
 
     if command.startswith("cierre"):
@@ -282,7 +282,6 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "user_name": update.effective_user.full_name
         })
 
-        # Use safe_send_message for confirmation message with dynamic content (escape only user JSON)
         await safe_send_message(
             context.bot,
             chat_id,
@@ -307,7 +306,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`"
                 )
     except Exception as e:
-        await safe_send_message(context.bot, chat_id, f"Hubo un error al procesar el mensaje: {escape_user_text(str(e))}")
+        await safe_send_message(context.bot, chat_id, f"❌ Hubo un error al procesar el mensaje:\n{str(e)}", escape_user_input=True)
 
 
 def interpret_message_with_gpt(message: str) -> str:
@@ -423,10 +422,12 @@ def escape_user_text(text: str) -> str:
     escape_chars = r"_*[]()~`>#+-=|{}.!"
     return re.sub(f'([{re.escape(escape_chars)}])', r'\\\1', text)
 
-async def safe_send_message(bot, chat_id: int, text: str, markdown_v2=True):
+async def safe_send_message(bot, chat_id: int, text: str, escape_user_input=False):
     from telegram.constants import ParseMode
+    if escape_user_input:
+        text = escape_user_text(text)
     await bot.send_message(
         chat_id=chat_id,
         text=text,
-        parse_mode=ParseMode.MARKDOWN_V2 if markdown_v2 else None
+        parse_mode=ParseMode.MARKDOWN_V2
     )
