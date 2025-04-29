@@ -41,43 +41,39 @@ def load_bot_config():
         raise RuntimeError("Config document not found in Firestore.")
     return doc.to_dict()
 
-@http
-def telegram_bot(request):
-    return asyncio.run(main(request))
 
+class BotService:
+    def __init__(self, bot):
+        self.bot = bot
+        self.allowed_users = load_allowed_user_ids()
+        self.config = load_bot_config()
 
-async def main(request):
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
-    bot = app.bot
+    async def handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Hola, soy tu bot de ventas y gastos para la floristería Morale's 🌸"
+        )
 
-    app.add_handler(CommandHandler("start", on_start))
-    app.add_handler(MessageHandler(filters.TEXT, on_message))
+    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        message = update.message.text
+        chat_id = update.effective_chat.id
+        user_id = update.effective_user.id
 
-    if request.method == 'GET':
-        await bot.set_webhook(f'https://{request.host}/telegram_bot')
-        return "Webhook set"
+        if user_id not in self.allowed_users:
+            await self._handle_unauthorized_access(update, context, message, chat_id, user_id)
+            return
 
-    async with app:
-        update = Update.de_json(request.json, bot)
-        await app.process_update(update)
+        command = message.strip().lower()
+        if command.startswith("eliminar"):
+            await self._handle_delete(update, context, message, chat_id, user_id)
+        elif command.startswith("editar"):
+            await self._handle_edit(update, context, message, chat_id, user_id)
+        elif command.startswith("cierre"):
+            await self._handle_closure_report(update, context, chat_id, user_id)
+        else:
+            await self._handle_data_insert(update, context, message, chat_id, user_id)
 
-    return "ok"
-
-
-async def on_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Hola, soy tu bot de ventas y gastos para la floristería Morale's 🌸"
-    )
-
-
-async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.message.text
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-
-    allowed_users = load_allowed_user_ids()
-    if user_id not in allowed_users:
+    async def _handle_unauthorized_access(self, update, context, message, chat_id, user_id):
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"Tu ID de usuario de Telegram es: `{user_id}`\nCompártelo con el administrador para que te dé acceso.",
@@ -91,12 +87,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "message_content": message,
             "user_name": update.effective_user.full_name
         })
-        return
 
-    # Lowercase for easier matching
-    command = message.strip().lower()
-
-    if command.startswith("eliminar"):
+    async def _handle_delete(self, update, context, message, chat_id, user_id):
         parts = message.split()
         if len(parts) != 2:
             await context.bot.send_message(
@@ -121,8 +113,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "user_name": update.effective_user.full_name
             })
             try:
-                config = load_bot_config()
-                if config.get("liveNotifications"):
+                if self.config.get("liveNotifications"):
                     db = firestore.Client()
                     owner_doc = next(
                         (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
@@ -142,9 +133,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
             await safe_send_message(context.bot, chat_id, f"❌ Error al eliminar:\n{str(e)}", escape_user_input=True)
-        return
 
-    if command.startswith("editar"):
+    async def _handle_edit(self, update, context, message, chat_id, user_id):
         parts = message.split(maxsplit=2)
         if len(parts) != 3:
             await context.bot.send_message(
@@ -174,8 +164,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "user_name": update.effective_user.full_name
             })
             try:
-                config = load_bot_config()
-                if config.get("liveNotifications"):
+                if self.config.get("liveNotifications"):
                     db = firestore.Client()
                     owner_doc = next(
                         (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
@@ -195,9 +184,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
             await safe_send_message(context.bot, chat_id, f"❌ Error al editar:\n{str(e)}", escape_user_input=True)
-        return
 
-    if command.startswith("cierre"):
+    async def _handle_closure_report(self, update, context, chat_id, user_id):
         client = bigquery.Client()
         query = f"""
         WITH latest_transactions AS (
@@ -256,57 +244,79 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "user_id": user_id,
             "chat_id": chat_id,
             "operation_type": "closure_report",
-            "message_content": message,
-            "user_name": update.effective_user.full_name
-        })
-        return
-
-    try:
-        gpt_response = interpret_message_with_gpt(message)
-        structured_data = json.loads(gpt_response)
-        if not structured_data.get("sales") and not structured_data.get("expenses"):
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="No se encontró ninguna venta ni gasto en el mensaje."
-            )
-            return
-        structured_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
-        insert_to_bigquery(structured_data)
-
-        log_to_bigquery({
-            "timestamp": current_cst_iso(),
-            "user_id": user_id,
-            "chat_id": chat_id,
-            "operation_type": "data_insert",
-            "message_content": message,
+            "message_content": "",
             "user_name": update.effective_user.full_name
         })
 
-        await safe_send_message(
-            context.bot,
-            chat_id,
-            f"Registro guardado correctamente\n\n"
-            f"```json\n{escape_user_text(json.dumps(structured_data, indent=2))}\n```"
-            f"\n\n🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`"
-        )
-
-        config = load_bot_config()
-        if config.get("liveNotifications"):
-            db = firestore.Client()
-            owner_doc = next(
-                (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
-                None
-            )
-            if owner_doc:
-                owner_id = int(owner_doc["ID"])
-                await safe_send_message(
-                    context.bot,
-                    owner_id,
-                    f"🔔 Nueva operación registrada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id}):\n\n{escape_user_text(message)}\n\n"
-                    f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`"
+    async def _handle_data_insert(self, update, context, message, chat_id, user_id):
+        try:
+            gpt_response = interpret_message_with_gpt(message)
+            structured_data = json.loads(gpt_response)
+            if not structured_data.get("sales") and not structured_data.get("expenses"):
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="No se encontró ninguna venta ni gasto en el mensaje."
                 )
-    except Exception as e:
-        await safe_send_message(context.bot, chat_id, f"❌ Hubo un error al procesar el mensaje:\n{str(e)}", escape_user_input=True)
+                return
+            structured_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
+            insert_to_bigquery(structured_data)
+
+            log_to_bigquery({
+                "timestamp": current_cst_iso(),
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "operation_type": "data_insert",
+                "message_content": message,
+                "user_name": update.effective_user.full_name
+            })
+
+            await safe_send_message(
+                context.bot,
+                chat_id,
+                f"Registro guardado correctamente\n\n"
+                f"```json\n{escape_user_text(json.dumps(structured_data, indent=2))}\n```"
+                f"\n\n🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`"
+            )
+
+            if self.config.get("liveNotifications"):
+                db = firestore.Client()
+                owner_doc = next(
+                    (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
+                    None
+                )
+                if owner_doc:
+                    owner_id = int(owner_doc["ID"])
+                    await safe_send_message(
+                        context.bot,
+                        owner_id,
+                        f"🔔 Nueva operación registrada por {escape_user_text(update.effective_user.full_name)} (ID: {user_id}):\n\n{escape_user_text(message)}\n\n"
+                        f"🆔 *ID de Transacción:*\n`{structured_data['transaction_id']}`"
+                    )
+        except Exception as e:
+            await safe_send_message(context.bot, chat_id, f"❌ Hubo un error al procesar el mensaje:\n{str(e)}", escape_user_input=True)
+
+
+@http
+def telegram_bot(request):
+    return asyncio.run(main(request))
+
+
+async def main(request):
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    bot_service = BotService(app.bot)
+
+    app.add_handler(CommandHandler("start", bot_service.handle_start))
+    app.add_handler(MessageHandler(filters.TEXT, bot_service.handle_message))
+
+    if request.method == 'GET':
+        await app.bot.set_webhook(f'https://{request.host}/telegram_bot')
+        return "Webhook set"
+
+    async with app:
+        update = Update.de_json(request.json, app.bot)
+        await app.process_update(update)
+
+    return "ok"
 
 
 def interpret_message_with_gpt(message: str) -> str:
