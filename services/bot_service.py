@@ -115,7 +115,7 @@ class BotService:
         try:
             gpt_response = interpret_message_with_gpt(new_text)
             new_data = json.loads(gpt_response)
-            new_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
+            new_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
             new_data["transaction_id"] = transaction_id
             safe_edit(transaction_id, new_data)
 
@@ -158,7 +158,7 @@ class BotService:
 
     async def _handle_closure_report(self, update, context, chat_id, user_id):
         try:
-            today = datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d")
+            today = datetime.now(self.cst).strftime("%Y-%m-%d")
             report = get_closure_report_by_date(today)
             if not report:
                 await context.bot.send_message(
@@ -221,7 +221,7 @@ class BotService:
                     text="No se encontró ninguna venta ni gasto en el mensaje."
                 )
                 return
-            structured_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
+            structured_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
             insert_to_bigquery(structured_data)
 
             log_to_bigquery({
