@@ -167,18 +167,17 @@ class BotService:
                 )
                 return
 
-            for row in report:
-                efectivo_sales = row.efectivo_sales if row.efectivo_sales is not None else 0
-                transfer_sales = row.transfer_sales if row.transfer_sales is not None else 0
-                total_expenses = row.total_expenses if row.total_expenses is not None else 0
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"🔔 Resumen del cierre de caja:\n\n"
-                        f"🏦 Ventas por transferencia bancaria: ${transfer_sales}\n"
-                        f"💵 Ventas en efectivo: ${efectivo_sales}\n"
-                        f"💰 Gastos del día: ${total_expenses}\n"
-                        f"💵 Total efectivo en caja: ${efectivo_sales - total_expenses}\n\n"
-                )
+            efectivo_sales = report.efectivo_sales if report.efectivo_sales is not None else 0
+            transfer_sales = report.transfer_sales if report.transfer_sales is not None else 0
+            total_expenses = report.total_expenses if report.total_expenses is not None else 0
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"🔔 Resumen del cierre de caja:\n\n"
+                    f"🏦 Ventas por transferencia bancaria: ${transfer_sales}\n"
+                    f"💵 Ventas en efectivo: ${efectivo_sales}\n"
+                    f"💰 Gastos del día: ${total_expenses}\n"
+                    f"💵 Total efectivo en caja: ${efectivo_sales - total_expenses}\n\n"
+            )
 
             log_to_bigquery({
                 "timestamp": datetime.now(self.cst).isoformat(),
