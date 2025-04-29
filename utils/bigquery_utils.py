@@ -32,7 +32,10 @@ def safe_delete(transaction_id: str):
         ]
     )
     result = client.query(query, job_config=job_config).result()
-    original = list(result)[0]
+    result_list = list(result)
+    if not result_list:
+        raise ValueError(f"No matching rows found for transaction_id: {transaction_id}")
+    original = result_list[0]
 
     shadow = dict(original)
     shadow["operation"] = "deleted"
