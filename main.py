@@ -190,7 +190,7 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await context.bot.send_message(
                             chat_id=owner_id,
                             text=f"🔔 Notificación de administración:\n\n"
-                                 f"Operación realizada por {escape_markdown(update.effective_user.full_name)} (ID: {user_id}).\n"
+                                 f"Operación realizada por {escape_markdown(update.effective_user.full_name)} (ID: {user_id})\n"
                                  f"Acción: {'Eliminar' if command.startswith('eliminar') else 'Editar'}\n"
                                  f"🆔 *ID de Transacción:*\n`{escape_markdown(transaction_id)}`",
                             parse_mode="MarkdownV2"
