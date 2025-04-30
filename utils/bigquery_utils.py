@@ -86,7 +86,6 @@ class BigQueryUtils:
         self.safe_delete(transaction_id)
 
         new_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
-        new_data["transaction_id"] = transaction_id
         new_data["operation"] = None
         new_data["is_deleted"] = False
         self.insert_to_bigquery(new_data)
