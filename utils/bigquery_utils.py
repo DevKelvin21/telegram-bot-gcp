@@ -9,15 +9,19 @@ class BigQueryUtils:
     such as logging, managing transactions, and generating reports.
     """
 
-    def __init__(self):
+    def __init__(self, timezone_obj):
         """
-        Initializes the BigQueryUtils class with a BigQuery client instance
-        and environment variables for project, dataset, and table.
+        Initializes the BigQueryUtils class with a BigQuery client instance,
+        environment variables for project, dataset, and table, and a timezone object.
+
+        Args:
+            timezone_obj (timezone): A timezone object to ensure consistent timezone handling.
         """
         self.client = bigquery.Client()
         self.project = os.getenv("BQ_PROJECT")
         self.dataset = os.getenv("BQ_DATASET")
         self.table = os.getenv("BQ_TABLE")
+        self.timezone = timezone_obj
 
     def log_to_bigquery(self, log_entry: dict):
         """
@@ -67,7 +71,7 @@ class BigQueryUtils:
         shadow = dict(original)
         shadow["operation"] = "deleted"
         shadow["is_deleted"] = True
-        shadow["date"] = datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d")
+        shadow["date"] = datetime.now(self.timezone).strftime("%Y-%m-%d")
         self.insert_to_bigquery(shadow)
 
     def safe_edit(self, transaction_id: str, new_data: dict):
@@ -81,7 +85,7 @@ class BigQueryUtils:
         """
         self.safe_delete(transaction_id)
 
-        new_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
+        new_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
         new_data["transaction_id"] = transaction_id
         new_data["operation"] = None
         new_data["is_deleted"] = False

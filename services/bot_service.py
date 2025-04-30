@@ -2,17 +2,27 @@ import json
 from datetime import datetime
 from utils.helpers import safe_send_message, escape_user_text
 from utils.gpt_utils import interpret_message_with_gpt
-import pytz
 
 
 class BotService:
     def __init__(self, bot, allowed_users, config, owner_id, bigquery_utils):
+        """
+        Initializes the BotService with the bot instance, allowed users, configuration,
+        owner ID, and BigQuery utilities.
+
+        Args:
+            bot: The Telegram bot instance.
+            allowed_users (set): A set of allowed Telegram user IDs.
+            config (dict): The bot configuration.
+            owner_id (int): The Telegram user ID of the owner.
+            bigquery_utils (BigQueryUtils): An instance of BigQueryUtils for database operations.
+        """
         self.bot = bot
         self.allowed_users = allowed_users
         self.owner_id = owner_id
         self.config = config
         self.bigquery_utils = bigquery_utils
-        self.cst = pytz.timezone("America/El_Salvador")
+        self.cst = bigquery_utils.timezone
 
     async def handle_start(self, update, context):
         await context.bot.send_message(
