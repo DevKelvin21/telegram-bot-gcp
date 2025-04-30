@@ -23,6 +23,7 @@ class BotService:
         self.config = config
         self.bigquery_utils = bigquery_utils
         self.timezone = bigquery_utils.timezone
+        self.developer_id = self.config.get("developerID", None)
 
     async def handle_start(self, update, context):
         await context.bot.send_message(
@@ -100,7 +101,15 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Error al eliminar:\n{str(e)}", escape_user_input=True)
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "eliminar",
+                str(e)
+            )
         return
 
     async def _handle_edit(self, update, context, message, chat_id, user_id):
@@ -115,8 +124,6 @@ class BotService:
         try:
             gpt_response = interpret_message_with_gpt(new_text, self.config)
             new_data = json.loads(gpt_response)
-            new_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
-            new_data["transaction_id"] = transaction_id
             self.bigquery_utils.safe_edit(transaction_id, new_data)
 
             await safe_send_message(
@@ -145,7 +152,15 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Error al editar:\n{str(e)}", escape_user_input=True)
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "editar",
+                str(e)
+            )
         return
 
     async def _handle_closure_report(self, update, context, chat_id, user_id):
@@ -192,7 +207,15 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Error al generar el cierre:\n{str(e)}", escape_user_input=True)
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "cierre",
+                str(e)
+            )
         return
 
     async def _handle_data_insert(self, update, context, message, chat_id, user_id):
@@ -224,14 +247,56 @@ class BotService:
                 f"{json.dumps(structured_data, indent=2)}\n\n"
                 f"ID de Transacción:\n{structured_data['transaction_id']}"
             )
-
-            if self.config.get("liveNotifications"):
-                await safe_send_message(
-                    context.bot,
-                    self.owner_id,
-                    f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
-                    f"ID de Transacción: {structured_data['transaction_id']}"
-                )
+            try:
+                if self.config.get("liveNotifications"):
+                    await safe_send_message(
+                        context.bot,
+                        self.owner_id,
+                        f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
+                        f"ID de Transacción: {structured_data['transaction_id']}"
+                    )
+            except Exception as notify_error:
+                print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Hubo un error al procesar el mensaje:\n{str(e)}", escape_user_input=True)
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "insertar",
+                str(e)
+            )
+            return
+            
+
+    async def _notify_error(self, bot, chat_id, developer_id, user_name, user_id, action, error_message):
+        """
+        Notifies the developer about an error that occurred during a bot operation.
+
+        Args:
+            bot: The Telegram bot instance.
+            chat_id (int): The chat ID where the error occurred.
+            developer_id (int): The Telegram user ID of the developer.
+            user_name (str): The name of the user who triggered the action.
+            user_id (int): The Telegram user ID of the user who triggered the action.
+            action (str): The action that caused the error.
+            error_message (str): The error message to be sent to the developer.
+        """
+        if not developer_id:
+            return
+        await safe_send_message(
+            bot,
+            developer_id,
+            f"🚨 Error Report:\n\n"
+            f"User: {user_name} (ID: {user_id})\n"
+            f"Action: {action}\n"
+            f"Error: {error_message}"
+        )
+        await safe_send_message(
+            bot,
+            chat_id,
+            f"❌ Hubo un error al procesar tu solicitud. El desarollador ha sido notificado, Por favor intenta mas tarde."
+        )
+        return
 
