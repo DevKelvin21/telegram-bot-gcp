@@ -1,18 +1,17 @@
 import json
 from datetime import datetime
 from utils.helpers import safe_send_message, escape_user_text
-from utils.bigquery_utils import log_to_bigquery, safe_delete, safe_edit, insert_to_bigquery, get_closure_report_by_date
 from utils.gpt_utils import interpret_message_with_gpt
-from config.loader import load_bot_config, load_owner_id
 import pytz
 
 
 class BotService:
-    def __init__(self, bot, allowed_users, config, owner_id):
+    def __init__(self, bot, allowed_users, config, owner_id, bigquery_utils):
         self.bot = bot
         self.allowed_users = allowed_users
         self.owner_id = owner_id
         self.config = config
+        self.bigquery_utils = bigquery_utils
         self.cst = pytz.timezone("America/El_Salvador")
 
     async def handle_start(self, update, context):
@@ -45,7 +44,7 @@ class BotService:
             chat_id=chat_id,
             text=f"Tu ID de usuario de Telegram es: {user_id}\nCompártelo con el administrador para que te dé acceso."
         )
-        log_to_bigquery({
+        self.bigquery_utils.log_to_bigquery({
             "timestamp": datetime.now(self.cst).isoformat(),
             "user_id": user_id,
             "chat_id": chat_id,
@@ -64,13 +63,13 @@ class BotService:
             return
         transaction_id = parts[1]
         try:
-            safe_delete(transaction_id)
+            self.bigquery_utils.safe_delete(transaction_id)
             await safe_send_message(
                 context.bot,
                 chat_id,
                 f"✅ ID de Transacción:\n{transaction_id} eliminada correctamente."
             )
-            log_to_bigquery({
+            self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.cst).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
@@ -79,8 +78,7 @@ class BotService:
                 "user_name": update.effective_user.full_name
             })
             try:
-                config = load_bot_config()
-                if config.get("liveNotifications"):
+                if self.config.get("liveNotifications"):
                     await safe_send_message(
                         context.bot,
                         self.owner_id,
@@ -109,14 +107,14 @@ class BotService:
             new_data = json.loads(gpt_response)
             new_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
             new_data["transaction_id"] = transaction_id
-            safe_edit(transaction_id, new_data)
+            self.bigquery_utils.safe_edit(transaction_id, new_data)
 
             await safe_send_message(
                 context.bot,
                 chat_id,
                 f"✅ ID de Transacción:\n{transaction_id} actualizada correctamente."
             )
-            log_to_bigquery({
+            self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.cst).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
@@ -125,8 +123,7 @@ class BotService:
                 "user_name": update.effective_user.full_name
             })
             try:
-                config = load_bot_config()
-                if config.get("liveNotifications"):
+                if self.config.get("liveNotifications"):
                     await safe_send_message(
                         context.bot,
                         self.owner_id,
@@ -144,7 +141,7 @@ class BotService:
     async def _handle_closure_report(self, update, context, chat_id, user_id):
         try:
             today = datetime.now(self.cst).strftime("%Y-%m-%d")
-            report = get_closure_report_by_date(today)
+            report = self.bigquery_utils.get_closure_report_by_date(today)
             if not report:
                 await context.bot.send_message(
                     chat_id=chat_id,
@@ -164,7 +161,7 @@ class BotService:
                     f"💵 Total efectivo en caja: ${efectivo_sales - total_expenses}\n\n"
             )
 
-            log_to_bigquery({
+            self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.cst).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
@@ -173,8 +170,7 @@ class BotService:
                 "user_name": update.effective_user.full_name
             })
             try:
-                config = load_bot_config()
-                if config.get("liveNotifications"):
+                if self.config.get("liveNotifications"):
                     await safe_send_message(
                         context.bot,
                         self.owner_id,
@@ -200,9 +196,9 @@ class BotService:
                 )
                 return
             structured_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
-            insert_to_bigquery(structured_data)
+            self.bigquery_utils.insert_to_bigquery(structured_data)
 
-            log_to_bigquery({
+            self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.cst).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
@@ -219,8 +215,7 @@ class BotService:
                 f"ID de Transacción:\n{structured_data['transaction_id']}"
             )
 
-            config = load_bot_config()
-            if config.get("liveNotifications"):
+            if self.config.get("liveNotifications"):
                 await safe_send_message(
                     context.bot,
                     self.owner_id,
