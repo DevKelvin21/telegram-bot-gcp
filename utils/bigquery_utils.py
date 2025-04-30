@@ -4,19 +4,47 @@ import uuid
 import os
 
 class BigQueryUtils:
+    """
+    A utility class for interacting with Google BigQuery to perform operations
+    such as logging, managing transactions, and generating reports.
+    """
+
     def __init__(self):
+        """
+        Initializes the BigQueryUtils class with a BigQuery client instance
+        and environment variables for project, dataset, and table.
+        """
         self.client = bigquery.Client()
         self.project = os.getenv("BQ_PROJECT")
         self.dataset = os.getenv("BQ_DATASET")
         self.table = os.getenv("BQ_TABLE")
 
     def log_to_bigquery(self, log_entry: dict):
+        """
+        Logs an entry to the BigQuery audit_logs table.
+
+        Args:
+            log_entry (dict): A dictionary containing the log data to be inserted.
+
+        Raises:
+            Prints errors if the insertion fails.
+        """
         log_table_id = f"{self.project}.{self.dataset}.audit_logs"
         errors = self.client.insert_rows_json(log_table_id, [log_entry])
         if errors:
             print(f"Audit log insert errors: {errors}")
 
     def safe_delete(self, transaction_id: str):
+        """
+        Marks a transaction as deleted by creating a shadow entry with the
+        "operation" field set to "deleted".
+
+        Args:
+            transaction_id (str): The ID of the transaction to delete.
+
+        Raises:
+            ValueError: If no matching transaction is found.
+        """
         table_id = f"{self.project}.{self.dataset}.{self.table}"
         query = f"""
         SELECT *
@@ -43,6 +71,14 @@ class BigQueryUtils:
         self.insert_to_bigquery(shadow)
 
     def safe_edit(self, transaction_id: str, new_data: dict):
+        """
+        Safely edits a transaction by first marking the original transaction
+        as deleted and then inserting the updated data.
+
+        Args:
+            transaction_id (str): The ID of the transaction to edit.
+            new_data (dict): A dictionary containing the updated transaction data.
+        """
         self.safe_delete(transaction_id)
 
         new_data.setdefault("date", datetime.now(timezone(timedelta(hours=-6))).strftime("%Y-%m-%d"))
@@ -52,6 +88,15 @@ class BigQueryUtils:
         self.insert_to_bigquery(new_data)
 
     def insert_to_bigquery(self, row: dict):
+        """
+        Inserts a new row into the BigQuery table.
+
+        Args:
+            row (dict): A dictionary containing the row data to be inserted.
+
+        Raises:
+            RuntimeError: If the insertion fails.
+        """
         table_id = f"{self.project}.{self.dataset}.{self.table}"
         row.setdefault("transaction_id", str(uuid.uuid4()))
         errors = self.client.insert_rows_json(table_id, [row])
@@ -59,6 +104,12 @@ class BigQueryUtils:
             raise RuntimeError(f"BigQuery insert errors: {errors}")
 
     def get_last_transaction_id(self):
+        """
+        Retrieves the ID of the most recent transaction that is not marked as deleted.
+
+        Returns:
+            str: The ID of the last transaction, or None if no transactions exist.
+        """
         table_id = f"{self.project}.{self.dataset}.{self.table}"
         query = f"""
         SELECT transaction_id
@@ -72,6 +123,15 @@ class BigQueryUtils:
         return list(result)[0].transaction_id if result.total_rows > 0 else None
 
     def get_transaction_by_id(self, transaction_id: str):
+        """
+        Retrieves a transaction by its ID.
+
+        Args:
+            transaction_id (str): The ID of the transaction to retrieve.
+
+        Returns:
+            dict: The transaction data, or None if no matching transaction is found.
+        """
         table_id = f"{self.project}.{self.dataset}.{self.table}"
         query = f"""
         SELECT *
@@ -89,6 +149,15 @@ class BigQueryUtils:
         return list(result)[0] if result.total_rows > 0 else None
 
     def get_closure_report_by_date(self, date: str):
+        """
+        Generates a closure report for a specific date, including sales and expenses.
+
+        Args:
+            date (str): The date for which to generate the report (in "YYYY-MM-DD" format).
+
+        Returns:
+            dict: A dictionary containing the closure report data, or None if no data exists.
+        """
         query = f"""
             WITH latest_transactions AS (
             SELECT *
