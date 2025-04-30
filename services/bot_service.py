@@ -152,17 +152,15 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            error_message = f"❌ Error al editar:\n{str(e)}"
-            await safe_send_message(context.bot, chat_id, error_message, escape_user_input=True)
-            if self.developer_id:
-                await safe_send_message(
-                    context.bot,
-                    self.developer_id,
-                    f"🚨 Error Report:\n\n"
-                    f"User: {update.effective_user.full_name} (ID: {user_id})\n"
-                    f"Action: Editar\n"
-                    f"Error: {str(e)}"
-                )
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "editar",
+                str(e)
+            )
         return
 
     async def _handle_closure_report(self, update, context, chat_id, user_id):
@@ -209,17 +207,15 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            error_message = f"❌ Error al generar el cierre:\n{str(e)}"
-            await safe_send_message(context.bot, chat_id, error_message, escape_user_input=True)
-            if self.developer_id:
-                await safe_send_message(
-                    context.bot,
-                    self.developer_id,
-                    f"🚨 Error Report:\n\n"
-                    f"User: {update.effective_user.full_name} (ID: {user_id})\n"
-                    f"Action: Cierre de caja\n"
-                    f"Error: {str(e)}"
-                )
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "cierre",
+                str(e)
+            )
         return
 
     async def _handle_data_insert(self, update, context, message, chat_id, user_id):
@@ -260,15 +256,45 @@ class BotService:
                     f"ID de Transacción: {structured_data['transaction_id']}"
                 )
         except Exception as e:
-            error_message = f"❌ Hubo un error al procesar el mensaje:\n{str(e)}"
-            await safe_send_message(context.bot, chat_id, error_message, escape_user_input=True)
-            if self.developer_id:
-                await safe_send_message(
-                    context.bot,
-                    self.developer_id,
-                    f"🚨 Error Report:\n\n"
-                    f"User: {update.effective_user.full_name} (ID: {user_id})\n"
-                    f"Action: Insertar datos\n"
-                    f"Error: {str(e)}"
-                )
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "insertar",
+                str(e)
+            )
+            return
+            
+
+    async def _notify_error(self, bot, chat_id, developer_id, user_name, user_id, action, error_message):
+        """
+        Notifies the developer about an error that occurred during a bot operation.
+
+        Args:
+            bot: The Telegram bot instance.
+            chat_id (int): The chat ID where the error occurred.
+            developer_id (int): The Telegram user ID of the developer.
+            user_name (str): The name of the user who triggered the action.
+            user_id (int): The Telegram user ID of the user who triggered the action.
+            action (str): The action that caused the error.
+            error_message (str): The error message to be sent to the developer.
+        """
+        if not developer_id:
+            return
+        await safe_send_message(
+            bot,
+            developer_id,
+            f"🚨 Error Report:\n\n"
+            f"User: {user_name} (ID: {user_id})\n"
+            f"Action: {action}\n"
+            f"Error: {error_message}"
+        )
+        await safe_send_message(
+            bot,
+            chat_id,
+            f"❌ Hubo un error al procesar tu solicitud. El desarollador ha sido notificado, Por favor intenta mas tarde."
+        )
+        return
 
