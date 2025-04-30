@@ -1,11 +1,9 @@
 from openai import OpenAI
-from config.loader import load_bot_config
 import os
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-def interpret_message_with_gpt(message: str) -> str:
-    config = load_bot_config()
+def interpret_message_with_gpt(message: str, config) -> str:
     model = config.get("gptModel", "gpt-3.5-turbo")
     client = OpenAI(api_key=OPENAI_API_KEY)
     response = client.chat.completions.create(

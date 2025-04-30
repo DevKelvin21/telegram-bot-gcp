@@ -2,17 +2,27 @@ import json
 from datetime import datetime
 from utils.helpers import safe_send_message, escape_user_text
 from utils.gpt_utils import interpret_message_with_gpt
-import pytz
 
 
 class BotService:
     def __init__(self, bot, allowed_users, config, owner_id, bigquery_utils):
+        """
+        Initializes the BotService with the bot instance, allowed users, configuration,
+        owner ID, and BigQuery utilities.
+
+        Args:
+            bot: The Telegram bot instance.
+            allowed_users (set): A set of allowed Telegram user IDs.
+            config (dict): The bot configuration.
+            owner_id (int): The Telegram user ID of the owner.
+            bigquery_utils (BigQueryUtils): An instance of BigQueryUtils for database operations.
+        """
         self.bot = bot
         self.allowed_users = allowed_users
         self.owner_id = owner_id
         self.config = config
         self.bigquery_utils = bigquery_utils
-        self.cst = pytz.timezone("America/El_Salvador")
+        self.timezone = bigquery_utils.timezone
 
     async def handle_start(self, update, context):
         await context.bot.send_message(
@@ -45,7 +55,7 @@ class BotService:
             text=f"Tu ID de usuario de Telegram es: {user_id}\nCompártelo con el administrador para que te dé acceso."
         )
         self.bigquery_utils.log_to_bigquery({
-            "timestamp": datetime.now(self.cst).isoformat(),
+            "timestamp": datetime.now(self.timezone).isoformat(),
             "user_id": user_id,
             "chat_id": chat_id,
             "operation_type": "unauthorized_access",
@@ -70,7 +80,7 @@ class BotService:
                 f"✅ ID de Transacción:\n{transaction_id} eliminada correctamente."
             )
             self.bigquery_utils.log_to_bigquery({
-                "timestamp": datetime.now(self.cst).isoformat(),
+                "timestamp": datetime.now(self.timezone).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "operation_type": "delete_transaction",
@@ -103,9 +113,9 @@ class BotService:
             return
         transaction_id, new_text = parts[1], parts[2]
         try:
-            gpt_response = interpret_message_with_gpt(new_text)
+            gpt_response = interpret_message_with_gpt(new_text, self.config)
             new_data = json.loads(gpt_response)
-            new_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
+            new_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
             new_data["transaction_id"] = transaction_id
             self.bigquery_utils.safe_edit(transaction_id, new_data)
 
@@ -115,7 +125,7 @@ class BotService:
                 f"✅ ID de Transacción:\n{transaction_id} actualizada correctamente."
             )
             self.bigquery_utils.log_to_bigquery({
-                "timestamp": datetime.now(self.cst).isoformat(),
+                "timestamp": datetime.now(self.timezone).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "operation_type": "edit_transaction",
@@ -140,7 +150,7 @@ class BotService:
 
     async def _handle_closure_report(self, update, context, chat_id, user_id):
         try:
-            today = datetime.now(self.cst).strftime("%Y-%m-%d")
+            today = datetime.now(self.timezone).strftime("%Y-%m-%d")
             report = self.bigquery_utils.get_closure_report_by_date(today)
             if not report:
                 await context.bot.send_message(
@@ -162,7 +172,7 @@ class BotService:
             )
 
             self.bigquery_utils.log_to_bigquery({
-                "timestamp": datetime.now(self.cst).isoformat(),
+                "timestamp": datetime.now(self.timezone).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "operation_type": "closure_report",
@@ -187,7 +197,7 @@ class BotService:
 
     async def _handle_data_insert(self, update, context, message, chat_id, user_id):
         try:
-            gpt_response = interpret_message_with_gpt(message)
+            gpt_response = interpret_message_with_gpt(message, self.config)
             structured_data = json.loads(gpt_response)
             if not structured_data.get("sales") and not structured_data.get("expenses"):
                 await context.bot.send_message(
@@ -195,11 +205,11 @@ class BotService:
                     text="No se encontró ninguna venta ni gasto en el mensaje."
                 )
                 return
-            structured_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
+            structured_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
             self.bigquery_utils.insert_to_bigquery(structured_data)
 
             self.bigquery_utils.log_to_bigquery({
-                "timestamp": datetime.now(self.cst).isoformat(),
+                "timestamp": datetime.now(self.timezone).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "operation_type": "data_insert",

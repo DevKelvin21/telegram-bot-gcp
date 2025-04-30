@@ -6,6 +6,7 @@ from config.loader import FirestoreLoader
 from utils.bigquery_utils import BigQueryUtils
 import os
 from telegram import Update
+import pytz
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
@@ -22,7 +23,8 @@ async def main(request):
     bot_config = firestore_loader.load_bot_config()
     owner_id = firestore_loader.load_owner_id()
 
-    bigquery_utils = BigQueryUtils()
+    timezone_obj = pytz.timezone("America/El_Salvador")
+    bigquery_utils = BigQueryUtils(timezone_obj)
 
     bot_service = BotService(app.bot, allowed_users, bot_config, owner_id, bigquery_utils)
 
