@@ -23,6 +23,7 @@ class BotService:
         self.config = config
         self.bigquery_utils = bigquery_utils
         self.timezone = bigquery_utils.timezone
+        self.developer_id = self.config.get("developerID", None)
 
     async def handle_start(self, update, context):
         await context.bot.send_message(
@@ -100,7 +101,17 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Error al eliminar:\n{str(e)}", escape_user_input=True)
+            error_message = f"❌ Error al eliminar:\n{str(e)}"
+            await safe_send_message(context.bot, chat_id, error_message, escape_user_input=True)
+            if self.developer_id:
+                await safe_send_message(
+                    context.bot,
+                    self.developer_id,
+                    f"🚨 Error Report:\n\n"
+                    f"User: {update.effective_user.full_name} (ID: {user_id})\n"
+                    f"Action: Eliminar\n"
+                    f"Error: {str(e)}"
+                )
         return
 
     async def _handle_edit(self, update, context, message, chat_id, user_id):
@@ -145,7 +156,17 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Error al editar:\n{str(e)}", escape_user_input=True)
+            error_message = f"❌ Error al editar:\n{str(e)}"
+            await safe_send_message(context.bot, chat_id, error_message, escape_user_input=True)
+            if self.developer_id:
+                await safe_send_message(
+                    context.bot,
+                    self.developer_id,
+                    f"🚨 Error Report:\n\n"
+                    f"User: {update.effective_user.full_name} (ID: {user_id})\n"
+                    f"Action: Editar\n"
+                    f"Error: {str(e)}"
+                )
         return
 
     async def _handle_closure_report(self, update, context, chat_id, user_id):
@@ -192,7 +213,17 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Error al generar el cierre:\n{str(e)}", escape_user_input=True)
+            error_message = f"❌ Error al generar el cierre:\n{str(e)}"
+            await safe_send_message(context.bot, chat_id, error_message, escape_user_input=True)
+            if self.developer_id:
+                await safe_send_message(
+                    context.bot,
+                    self.developer_id,
+                    f"🚨 Error Report:\n\n"
+                    f"User: {update.effective_user.full_name} (ID: {user_id})\n"
+                    f"Action: Cierre de caja\n"
+                    f"Error: {str(e)}"
+                )
         return
 
     async def _handle_data_insert(self, update, context, message, chat_id, user_id):
@@ -233,5 +264,15 @@ class BotService:
                     f"ID de Transacción: {structured_data['transaction_id']}"
                 )
         except Exception as e:
-            await safe_send_message(context.bot, chat_id, f"❌ Hubo un error al procesar el mensaje:\n{str(e)}", escape_user_input=True)
+            error_message = f"❌ Hubo un error al procesar el mensaje:\n{str(e)}"
+            await safe_send_message(context.bot, chat_id, error_message, escape_user_input=True)
+            if self.developer_id:
+                await safe_send_message(
+                    context.bot,
+                    self.developer_id,
+                    f"🚨 Error Report:\n\n"
+                    f"User: {update.effective_user.full_name} (ID: {user_id})\n"
+                    f"Action: Insertar datos\n"
+                    f"Error: {str(e)}"
+                )
 
