@@ -8,9 +8,10 @@ import pytz
 
 
 class BotService:
-    def __init__(self, bot, allowed_users, config):
+    def __init__(self, bot, allowed_users, config, owner_id):
         self.bot = bot
         self.allowed_users = allowed_users
+        self.owner_id = owner_id
         self.config = config
         self.cst = pytz.timezone("America/El_Salvador")
 
@@ -80,10 +81,9 @@ class BotService:
             try:
                 config = load_bot_config()
                 if config.get("liveNotifications"):
-                    owner_id = load_owner_id()
                     await safe_send_message(
                         context.bot,
-                        owner_id,
+                        self.owner_id,
                         f"🔔 Notificación de administración:\n\n"
                         f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
                         f"Acción: Eliminar\n"
@@ -127,10 +127,9 @@ class BotService:
             try:
                 config = load_bot_config()
                 if config.get("liveNotifications"):
-                    owner_id = load_owner_id()
                     await safe_send_message(
                         context.bot,
-                        owner_id,
+                        self.owner_id,
                         f"🔔 Notificación de administración:\n\n"
                         f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
                         f"Acción: Editar\n"
@@ -176,10 +175,9 @@ class BotService:
             try:
                 config = load_bot_config()
                 if config.get("liveNotifications"):
-                    owner_id = load_owner_id()
                     await safe_send_message(
                         context.bot,
-                        owner_id,
+                        self.owner_id,
                         f"🔔 Notificación de administración:\n\n"
                         f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
                         f"Acción: Cierre de caja\n"
@@ -218,16 +216,14 @@ class BotService:
                 chat_id,
                 f"Registro guardado correctamente\n\n"
                 f"{json.dumps(structured_data, indent=2)}\n\n"
-                # Avoid using Markdown formatting here to ensure compatibility with the message rendering system
                 f"ID de Transacción:\n{structured_data['transaction_id']}"
             )
 
             config = load_bot_config()
             if config.get("liveNotifications"):
-                owner_id = load_owner_id()
                 await safe_send_message(
                     context.bot,
-                    owner_id,
+                    self.owner_id,
                     f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
                     f"ID de Transacción: {structured_data['transaction_id']}"
                 )
