@@ -255,10 +255,9 @@ class BotService:
             await safe_send_message(
                 context.bot,
                 chat_id,
-                f"Registro guardado correctamente."
-                f"{json.dumps(structured_data, indent=2)}",
+                f"Registro guardado correctamente.\n\n"
+                f"{json.dumps(structured_data, indent=2)}\n\n"
                 f"✅ ID de Transacción guardada correctamente."
-
             )
             await safe_send_message(
                 context.bot,
