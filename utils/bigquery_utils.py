@@ -120,7 +120,7 @@ def get_closure_report_by_date(date: str):
             SUM(total_sale_price) AS efectivo_sales
         FROM unique_transactions
         WHERE payment_method = 'cash'
-            AND date = '{date}'
+            AND date = @date
         ),
 
         ventas_transferencia AS (
@@ -128,7 +128,7 @@ def get_closure_report_by_date(date: str):
             SUM(total_sale_price) AS transfer_sales
         FROM unique_transactions
         WHERE payment_method = 'bank_transfer'
-            AND date = '{date}'
+            AND date = @date
         ),
 
         gastos_totales AS (
@@ -136,7 +136,7 @@ def get_closure_report_by_date(date: str):
             SUM(expense.amount) AS total_expenses
         FROM unique_transactions,
         UNNEST(expenses) AS expense
-        WHERE date = '{date}'
+        WHERE date = @date
         )
 
         SELECT
@@ -144,7 +144,12 @@ def get_closure_report_by_date(date: str):
         (SELECT transfer_sales FROM ventas_transferencia) AS transfer_sales,
         (SELECT total_expenses FROM gastos_totales) AS total_expenses
     """
-    result = client.query(query).result()
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("date", "STRING", date)
+        ]
+    )
+    result = client.query(query, job_config=job_config).result()
     if result.total_rows > 0:
         return list(result)[0]
     else:
