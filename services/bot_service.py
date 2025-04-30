@@ -126,8 +126,6 @@ class BotService:
         try:
             gpt_response = interpret_message_with_gpt(new_text, self.config)
             new_data = json.loads(gpt_response)
-            new_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
-            new_data["transaction_id"] = transaction_id
             self.bigquery_utils.safe_edit(transaction_id, new_data)
 
             await safe_send_message(
