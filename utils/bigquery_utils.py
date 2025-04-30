@@ -1,5 +1,5 @@
 from google.cloud import bigquery
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 import uuid
 import os
 
