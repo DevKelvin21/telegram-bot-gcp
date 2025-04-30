@@ -101,17 +101,15 @@ class BotService:
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
-            error_message = f"❌ Error al eliminar:\n{str(e)}"
-            await safe_send_message(context.bot, chat_id, error_message, escape_user_input=True)
-            if self.developer_id:
-                await safe_send_message(
-                    context.bot,
-                    self.developer_id,
-                    f"🚨 Error Report:\n\n"
-                    f"User: {update.effective_user.full_name} (ID: {user_id})\n"
-                    f"Action: Eliminar\n"
-                    f"Error: {str(e)}"
-                )
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "eliminar",
+                str(e)
+            )
         return
 
     async def _handle_edit(self, update, context, message, chat_id, user_id):
