@@ -17,3 +17,12 @@ def load_bot_config():
     if not doc.exists:
         raise RuntimeError("Config document not found in Firestore.")
     return doc.to_dict()
+
+def load_owner_id():
+    db = firestore.Client()
+    docs = db.collection("allowedUserIDs").stream()
+    for doc in docs:
+        data = doc.to_dict()
+        if data["Role"] == "Owner":
+            return int(data["ID"])
+    raise RuntimeError("Owner ID not found in Firestore.")

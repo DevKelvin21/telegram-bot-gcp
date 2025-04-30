@@ -102,29 +102,39 @@ def get_closure_report_by_date(date: str):
         WITH latest_transactions AS (
         SELECT *
         FROM `{BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}`
-        WHERE operation IS NULL
-        )
+        ),
 
-        , ventas_efectivo AS (
+        unique_transactions AS (
+        SELECT *
+        FROM latest_transactions
+        WHERE transaction_id IN (
+            SELECT transaction_id
+            FROM latest_transactions
+            GROUP BY transaction_id
+            HAVING COUNT(transaction_id) = 1
+        )
+        ),
+
+        ventas_efectivo AS (
         SELECT
             SUM(total_sale_price) AS efectivo_sales
-        FROM latest_transactions
+        FROM unique_transactions
         WHERE payment_method = 'cash'
             AND date = '{date}'
-        )
+        ),
 
-        , ventas_transferencia AS (
+        ventas_transferencia AS (
         SELECT
             SUM(total_sale_price) AS transfer_sales
-        FROM latest_transactions
+        FROM unique_transactions
         WHERE payment_method = 'bank_transfer'
             AND date = '{date}'
-        )
+        ),
 
-        , gastos_totales AS (
+        gastos_totales AS (
         SELECT
             SUM(expense.amount) AS total_expenses
-        FROM latest_transactions,
+        FROM unique_transactions,
         UNNEST(expenses) AS expense
         WHERE date = '{date}'
         )

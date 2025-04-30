@@ -1,10 +1,9 @@
 import json
-from datetime import datetime, timezone, timedelta
-from google.cloud import bigquery, firestore
+from datetime import datetime
 from utils.helpers import safe_send_message, escape_user_text
 from utils.bigquery_utils import log_to_bigquery, safe_delete, safe_edit, insert_to_bigquery, get_closure_report_by_date
 from utils.gpt_utils import interpret_message_with_gpt
-from config.loader import load_bot_config
+from config.loader import load_bot_config, load_owner_id
 import pytz
 
 
@@ -81,21 +80,15 @@ class BotService:
             try:
                 config = load_bot_config()
                 if config.get("liveNotifications"):
-                    db = firestore.Client()
-                    owner_doc = next(
-                        (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
-                        None
+                    owner_id = load_owner_id()
+                    await safe_send_message(
+                        context.bot,
+                        owner_id,
+                        f"🔔 Notificación de administración:\n\n"
+                        f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
+                        f"Acción: Eliminar\n"
+                        f"ID de Transacción: {transaction_id}"
                     )
-                    if owner_doc:
-                        owner_id = int(owner_doc["ID"])
-                        await safe_send_message(
-                            context.bot,
-                            owner_id,
-                            f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
-                            f"Acción: Eliminar\n"
-                            f"ID de Transacción: {transaction_id}"
-                        )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
@@ -134,21 +127,15 @@ class BotService:
             try:
                 config = load_bot_config()
                 if config.get("liveNotifications"):
-                    db = firestore.Client()
-                    owner_doc = next(
-                        (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
-                        None
+                    owner_id = load_owner_id()
+                    await safe_send_message(
+                        context.bot,
+                        owner_id,
+                        f"🔔 Notificación de administración:\n\n"
+                        f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
+                        f"Acción: Editar\n"
+                        f"ID de Transacción: {transaction_id}"
                     )
-                    if owner_doc:
-                        owner_id = int(owner_doc["ID"])
-                        await safe_send_message(
-                            context.bot,
-                            owner_id,
-                            f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
-                            f"Acción: Editar\n"
-                            f"ID de Transacción: {transaction_id}"
-                        )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
@@ -189,21 +176,15 @@ class BotService:
             try:
                 config = load_bot_config()
                 if config.get("liveNotifications"):
-                    db = firestore.Client()
-                    owner_doc = next(
-                        (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
-                        None
+                    owner_id = load_owner_id()
+                    await safe_send_message(
+                        context.bot,
+                        owner_id,
+                        f"🔔 Notificación de administración:\n\n"
+                        f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
+                        f"Acción: Cierre de caja\n"
+                        f"Fecha: {today}"
                     )
-                    if owner_doc:
-                        owner_id = int(owner_doc["ID"])
-                        await safe_send_message(
-                            context.bot,
-                            owner_id,
-                            f"🔔 Notificación de administración:\n\n"
-                            f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
-                            f"Acción: Cierre de caja\n"
-                            f"Fecha: {today}"
-                        )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
@@ -243,19 +224,13 @@ class BotService:
 
             config = load_bot_config()
             if config.get("liveNotifications"):
-                db = firestore.Client()
-                owner_doc = next(
-                    (doc.to_dict() for doc in db.collection("allowedUserIDs").stream() if doc.to_dict().get("Role") == "Owner"),
-                    None
+                owner_id = load_owner_id()
+                await safe_send_message(
+                    context.bot,
+                    owner_id,
+                    f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
+                    f"ID de Transacción: {structured_data['transaction_id']}"
                 )
-                if owner_doc:
-                    owner_id = int(owner_doc["ID"])
-                    await safe_send_message(
-                        context.bot,
-                        owner_id,
-                        f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
-                        f"ID de Transacción: {structured_data['transaction_id']}"
-                    )
         except Exception as e:
             await safe_send_message(context.bot, chat_id, f"❌ Hubo un error al procesar el mensaje:\n{str(e)}", escape_user_input=True)
 
