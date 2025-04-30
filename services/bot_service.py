@@ -1,6 +1,5 @@
 import json
-from datetime import datetime, timezone, timedelta
-from google.cloud import bigquery, firestore
+from datetime import datetime
 from utils.helpers import safe_send_message, escape_user_text
 from utils.bigquery_utils import log_to_bigquery, safe_delete, safe_edit, insert_to_bigquery, get_closure_report_by_date
 from utils.gpt_utils import interpret_message_with_gpt
