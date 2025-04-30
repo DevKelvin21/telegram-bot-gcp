@@ -2,7 +2,8 @@ import asyncio
 from functions_framework import http
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from services.bot_service import BotService
-from config.loader import load_allowed_user_ids, load_bot_config
+from config.loader import FirestoreLoader
+from utils.bigquery_utils import BigQueryUtils
 import os
 from telegram import Update
 
@@ -16,9 +17,14 @@ def telegram_bot(request):
 async def main(request):
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    allowed_users = load_allowed_user_ids()
-    bot_config = load_bot_config()
-    bot_service = BotService(app.bot, allowed_users, bot_config)
+    firestore_loader = FirestoreLoader()
+    allowed_users = firestore_loader.load_allowed_user_ids()
+    bot_config = firestore_loader.load_bot_config()
+    owner_id = firestore_loader.load_owner_id()
+
+    bigquery_utils = BigQueryUtils()
+
+    bot_service = BotService(app.bot, allowed_users, bot_config, owner_id, bigquery_utils)
 
     app.add_handler(CommandHandler("start", bot_service.handle_start))
     app.add_handler(MessageHandler(filters.TEXT, bot_service.handle_message))
