@@ -247,14 +247,16 @@ class BotService:
                 f"{json.dumps(structured_data, indent=2)}\n\n"
                 f"ID de Transacción:\n{structured_data['transaction_id']}"
             )
-
-            if self.config.get("liveNotifications"):
-                await safe_send_message(
-                    context.bot,
-                    self.owner_id,
-                    f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
-                    f"ID de Transacción: {structured_data['transaction_id']}"
-                )
+            try:
+                if self.config.get("liveNotifications"):
+                    await safe_send_message(
+                        context.bot,
+                        self.owner_id,
+                        f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
+                        f"ID de Transacción: {structured_data['transaction_id']}"
+                    )
+            except Exception as notify_error:
+                print(f"Error notificando al Owner: {notify_error}")
         except Exception as e:
             await self._notify_error(
                 context.bot,
