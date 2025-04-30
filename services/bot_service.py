@@ -78,7 +78,13 @@ class BotService:
             await safe_send_message(
                 context.bot,
                 chat_id,
-                f"✅ ID de Transacción:\n{transaction_id} eliminada correctamente."
+                f"✅ ID de Transacción eliminada correctamente."
+            )
+            await safe_send_message(
+                context.bot,
+                chat_id,
+                f"`{transaction_id}`",
+                parse_mode="MarkdownV2"
             )
             self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.timezone).isoformat(),
@@ -129,7 +135,13 @@ class BotService:
             await safe_send_message(
                 context.bot,
                 chat_id,
-                f"✅ ID de Transacción:\n{transaction_id} actualizada correctamente."
+                f"✅ ID de Transacción actualizada correctamente."
+            )
+            await safe_send_message(
+                context.bot,
+                chat_id,
+                f"`{transaction_id}`",
+                parse_mode="MarkdownV2"
             )
             self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.timezone).isoformat(),
@@ -243,9 +255,16 @@ class BotService:
             await safe_send_message(
                 context.bot,
                 chat_id,
-                f"Registro guardado correctamente\n\n"
-                f"{json.dumps(structured_data, indent=2)}\n\n"
-                f"ID de Transacción:\n{structured_data['transaction_id']}"
+                f"Registro guardado correctamente."
+                f"{json.dumps(structured_data, indent=2)}",
+                f"✅ ID de Transacción guardada correctamente."
+
+            )
+            await safe_send_message(
+                context.bot,
+                chat_id,
+                f"`{structured_data['transaction_id']}`",
+                parse_mode="MarkdownV2"
             )
             try:
                 if self.config.get("liveNotifications"):
