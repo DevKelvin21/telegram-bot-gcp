@@ -113,7 +113,7 @@ class BotService:
             return
         transaction_id, new_text = parts[1], parts[2]
         try:
-            gpt_response = interpret_message_with_gpt(new_text)
+            gpt_response = interpret_message_with_gpt(new_text, self.config)
             new_data = json.loads(gpt_response)
             new_data.setdefault("date", datetime.now(self.cst).strftime("%Y-%m-%d"))
             new_data["transaction_id"] = transaction_id
@@ -197,7 +197,7 @@ class BotService:
 
     async def _handle_data_insert(self, update, context, message, chat_id, user_id):
         try:
-            gpt_response = interpret_message_with_gpt(message)
+            gpt_response = interpret_message_with_gpt(message, self.config)
             structured_data = json.loads(gpt_response)
             if not structured_data.get("sales") and not structured_data.get("expenses"):
                 await context.bot.send_message(
