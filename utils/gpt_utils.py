@@ -37,6 +37,7 @@ def interpret_message_with_gpt(message: str, config) -> str:
                     "- If the message describes a **sale** (e.g., 'vendimos', 'se vendió'), create an entry under \"sales\" and set \"total_sale_price\".\n"
                     "- If the message describes only an expense, \"total_sale_price\" must be null.\n"
                     "- If no payment method is mentioned and it is not a sale, set \"payment_method\" to null.\n"
+                    "- If the message contains \"docena\" take it as 12 units, but don't calculate the price for total_sale_price; just leave what the user passed.\n"
                     "- Always output only valid JSON without additional explanations."
                 )
             },

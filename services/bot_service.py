@@ -214,7 +214,11 @@ class BotService:
                         f"🔔 Notificación de administración:\n\n"
                         f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
                         f"Acción: Cierre de caja\n"
-                        f"Fecha: {today}"
+                        f"Fecha: {today}\n\n"
+                        f"🏦 Ventas por transferencia bancaria: ${transfer_sales}\n"
+                        f"💵 Ventas en efectivo: ${efectivo_sales}\n"
+                        f"💰 Gastos del día: ${total_expenses}\n"
+                        f"💵 Total efectivo en caja: ${efectivo_sales - total_expenses}\n\n"
                     )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
