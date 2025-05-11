@@ -113,19 +113,24 @@ class GPTMessageInterpreter:
                 items = []
                 for sale in sales:
                     item = sale.get("item", "producto")
-                    quantity = sale.get("quantity", 1)
+                    quantity = sale.get("quantity")
+                    is_quantity_missing = quantity is None
+                    if is_quantity_missing:
+                        quantity = 1  # Default to 1 if missing
                     unit_price = sale.get("unit_price", 0)
 
                     # Handle ambiguous or missing details
                     if not item or item.strip() == "":
                         item = f"{item} (¿producto?)"
-                    if not quantity:
-                        quantity = f"{quantity} (¿cantidad?)"
+                    if is_quantity_missing:
+                        quantity_placeholder = "¿cantidad?"
+                    else:
+                        quantity_placeholder = None
                     if not unit_price:
                         unit_price = f"{unit_price} (¿precio unitario?)"
 
                     # Infer "docena" as 12 units
-                    if "docena" in item.lower() and quantity == f"{quantity} (¿cantidad?)":
+                    if "docena" in item.lower() and is_quantity_missing:
                         quantity = 12
 
                     items.append(f"{quantity} {item}")
