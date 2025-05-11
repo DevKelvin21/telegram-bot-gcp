@@ -150,7 +150,7 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "edit_transaction",
                 "message_content": message,
-                "user_name": update.effective_user.full_name
+                "user_name": new_data.get("sender_name", update.effective_user.full_name)
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -254,7 +254,7 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "data_insert",
                 "message_content": message,
-                "user_name": update.effective_user.full_name
+                "user_name": structured_data.get("sender_name", update.effective_user.full_name)
             })
 
             summary = self.gpt_interpreter.generate_summary_in_spanish(gpt_response)

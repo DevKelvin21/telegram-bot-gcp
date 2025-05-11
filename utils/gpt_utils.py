@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from openai import OpenAI
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -18,6 +19,22 @@ class GPTMessageInterpreter:
 
     def interpret_message_with_gpt(self, message: str, config) -> str:
         model = config.get("gptModel", "gpt-3.5-turbo")
+
+        # Extract sender's name from the message
+        name_match = re.search(r"(?i)nombre[:\-]?\s*(\w+)", message)
+        if name_match:
+            sender_name = name_match.group(1)
+            message_without_name = re.sub(r"(?i)nombre[:\-]?\s*\w+", "", message).strip()
+        else:
+            # Assume the last word(s) in the message is the sender's name if no prefix is found
+            parts = message.rsplit(" ", 1)
+            if len(parts) > 1 and not re.search(r"\d", parts[1]):  # Ensure it's not a number
+                sender_name = parts[1]
+                message_without_name = parts[0].strip()
+            else:
+                sender_name = None
+                message_without_name = message
+
         response = self.client.chat.completions.create(
             model=model,
             messages=[
@@ -42,7 +59,8 @@ class GPTMessageInterpreter:
                         "      \"description\": \"string\",\n"
                         "      \"amount\": float\n"
                         "    }\n"
-                        "  ]\n"
+                        "  ],\n"
+                        "  \"sender_name\": string or null // Extracted sender's name from the message, null if not found\n"
                         "}\n\n"
                         "Rules:\n"
                         "- If the message describes a **purchase**, **buying**, or **operational cost** (e.g., 'compramos', 'gastamos', 'pagamos'), create an entry under \"expenses\".\n"
@@ -53,11 +71,15 @@ class GPTMessageInterpreter:
                         "- Always output only valid JSON without additional explanations."
                     )
                 },
-                {"role": "user", "content": message}
+                {"role": "user", "content": message_without_name}
             ],
             temperature=0.2
         )
-        return response.choices[0].message.content
+
+        # Add sender's name to the response JSON
+        response_json = json.loads(response.choices[0].message.content)
+        response_json["sender_name"] = sender_name
+        return json.dumps(response_json)
 
     def generate_summary_in_spanish(self, json_output: str, original_message: str) -> str:
         """
