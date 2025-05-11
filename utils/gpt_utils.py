@@ -59,12 +59,13 @@ class GPTMessageInterpreter:
         )
         return response.choices[0].message.content
 
-    def generate_summary_in_spanish(self, json_output: str) -> str:
+    def generate_summary_in_spanish(self, json_output: str, original_message: str) -> str:
         """
-        Generates a plain text summary in Spanish based on the JSON output.
+        Generates a plain text summary in Spanish based on the JSON output and refines it using ChatGPT.
 
         Args:
             json_output (str): The JSON string output from interpret_message_with_gpt.
+            original_message (str): The original user input message.
 
         Returns:
             str: A plain text summary in Spanish.
@@ -84,6 +85,8 @@ class GPTMessageInterpreter:
             }
             payment_method = payment_method_translation.get(payment_method, "efectivo")
 
+            summary = ""
+
             if sales:
                 items = []
                 for sale in sales:
@@ -93,21 +96,21 @@ class GPTMessageInterpreter:
 
                     # Handle ambiguous or missing details
                     if not item or item.strip() == "":
-                        item = "¿producto?"
+                        item = f"{item} (¿producto?)"
                     if not quantity:
-                        quantity = "¿cantidad?"
+                        quantity = f"{quantity} (¿cantidad?)"
                     if not unit_price:
-                        unit_price = "¿precio unitario?"
+                        unit_price = f"{unit_price} (¿precio unitario?)"
 
                     # Infer "docena" as 12 units
-                    if "docena" in item.lower() and quantity == "¿cantidad?":
+                    if "docena" in item.lower() and quantity == f"{quantity} (¿cantidad?)":
                         quantity = 12
 
                     items.append(f"{quantity} {item}")
                 items_text = ", ".join(items)
-                return f"Esto es lo que entendí: vendiste {items_text} por un total de ${total_sale_price} en {payment_method}."
+                summary = f"Esto es lo que entendí: vendiste {items_text} por un total de ${total_sale_price} en {payment_method}."
 
-            if expenses:
+            elif expenses:
                 items = []
                 for expense in expenses:
                     description = expense.get("description", "gasto")
@@ -115,15 +118,51 @@ class GPTMessageInterpreter:
 
                     # Handle ambiguous or missing details
                     if not description or description.strip() == "":
-                        description = "¿descripción?"
+                        description = f"{description} (¿descripción?)"
                     if not amount:
-                        amount = "¿monto?"
+                        amount = f"{amount} (¿monto?)"
 
                     items.append(f"{description} por ${amount}")
                 items_text = ", ".join(items)
-                return f"Esto es lo que entendí: registraste los siguientes gastos: {items_text}."
+                summary = f"Esto es lo que entendí: registraste los siguientes gastos: {items_text}."
 
-            return "No se encontró ninguna venta ni gasto en el mensaje. ¿Podrías dar más contexto?"
+            else:
+                summary = "No se encontró ninguna venta ni gasto en el mensaje. ¿Podrías dar más contexto?"
+
+            # Refine the summary using ChatGPT
+            refined_summary = self._refine_summary_with_gpt(original_message, summary)
+            return refined_summary
 
         except json.JSONDecodeError:
             return "Hubo un error al procesar el mensaje. Por favor, inténtalo de nuevo."
+
+    def _refine_summary_with_gpt(self, original_message: str, draft_summary: str) -> str:
+        """
+        Refines the draft summary using ChatGPT.
+
+        Args:
+            original_message (str): The original user input message.
+            draft_summary (str): The draft summary generated from the JSON output.
+
+        Returns:
+            str: A refined summary in Spanish.
+        """
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "Eres un asistente que ayuda a refinar resúmenes en español basados en mensajes de texto "
+                            "de una floristería. El mensaje original puede contener errores gramaticales o falta de contexto. "
+                            "Tu tarea es mejorar el resumen manteniendo un tono conciso y claro, y asegurándote de que sea fácil de entender."
+                        )
+                    },
+                    {"role": "user", "content": f"Mensaje original: {original_message}\nResumen inicial: {draft_summary}"}
+                ],
+                temperature=0.2
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"{draft_summary}\n\nNota: No se pudo refinar el resumen automáticamente debido a un error: {str(e)}"
