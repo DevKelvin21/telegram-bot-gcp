@@ -192,4 +192,6 @@ class GPTMessageInterpreter:
             )
             return response.choices[0].message.content
         except Exception as e:
-            return f"{draft_summary}\n\nNota: No se pudo refinar el resumen automáticamente debido a un error: {str(e)}"
+            import logging
+            logging.error("Error while refining summary with GPT: %s", str(e))
+            return f"{draft_summary}\n\nNota: No se pudo refinar el resumen automáticamente debido a un error inesperado."
