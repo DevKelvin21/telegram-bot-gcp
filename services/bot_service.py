@@ -257,7 +257,7 @@ class BotService:
                 "user_name": structured_data.get("sender_name", update.effective_user.full_name)
             })
 
-            summary = self.gpt_interpreter.generate_summary_in_spanish(gpt_response)
+            summary = self.gpt_interpreter.generate_summary_in_spanish(gpt_response, original_message=message)
             await safe_send_message(
                 context.bot,
                 chat_id,
