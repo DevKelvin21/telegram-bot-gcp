@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
-from utils.helpers import safe_send_message, escape_user_text
-from utils.gpt_utils import interpret_message_with_gpt
+from utils.helpers import safe_send_message
+from utils.gpt_utils import GPTMessageInterpreter
 
 
 class BotService:
@@ -24,6 +24,7 @@ class BotService:
         self.bigquery_utils = bigquery_utils
         self.timezone = bigquery_utils.timezone
         self.developer_id = self.config.get("developerID", None)
+        self.gpt_interpreter = GPTMessageInterpreter()
 
     async def handle_start(self, update, context):
         await context.bot.send_message(
@@ -46,7 +47,7 @@ class BotService:
         elif command.startswith("editar"):
             await self._handle_edit(update, context, message, chat_id, user_id)
         elif command.startswith("cierre"):
-            await self._handle_closure_report(update, context, chat_id, user_id)
+            await self._handle_closure_report(update, context, message, chat_id, user_id)
         else:
             await self._handle_data_insert(update, context, message, chat_id, user_id)
 
@@ -66,13 +67,13 @@ class BotService:
 
     async def _handle_delete(self, update, context, message, chat_id, user_id):
         parts = message.split()
-        if len(parts) != 2:
+        if len(parts) != 3:
             await context.bot.send_message(
                 chat_id=chat_id,
-                text="Formato incorrecto. Usa: eliminar <transaction_id>"
+                text="Formato incorrecto. Usa: eliminar <transaction_id> <nombre del usuario>"
             )
             return
-        transaction_id = parts[1]
+        transaction_id, user_name = parts[1], parts[2] if len(parts) > 2 else update.effective_user.full_name
         try:
             self.bigquery_utils.safe_delete(transaction_id)
             await safe_send_message(
@@ -92,7 +93,7 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "delete_transaction",
                 "message_content": message,
-                "user_name": update.effective_user.full_name
+                "user_name": user_name
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -100,7 +101,7 @@ class BotService:
                         context.bot,
                         self.owner_id,
                         f"🔔 Notificación de administración:\n\n"
-                        f"Operación realizada por {update.effective_user.full_name} (ID: {user_id}).\n"
+                        f"Operación realizada por {user_name} (ID: {user_id}).\n"
                         f"Acción: Eliminar\n"
                         f"ID de Transacción: {transaction_id}"
                     )
@@ -111,7 +112,7 @@ class BotService:
                 context.bot,
                 chat_id,
                 self.developer_id,
-                update.effective_user.full_name,
+                user_name,
                 user_id,
                 "eliminar",
                 str(e)
@@ -128,10 +129,10 @@ class BotService:
             return
         transaction_id, new_text = parts[1], parts[2]
         try:
-            gpt_response = interpret_message_with_gpt(new_text, self.config)
+            gpt_response = self.gpt_interpreter.interpret_message_with_gpt(new_text, self.config)
             new_data = json.loads(gpt_response)
             self.bigquery_utils.safe_edit(transaction_id, new_data)
-
+            user_name = new_data.get("sender_name", update.effective_user.full_name)
             await safe_send_message(
                 context.bot,
                 chat_id,
@@ -149,7 +150,7 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "edit_transaction",
                 "message_content": message,
-                "user_name": update.effective_user.full_name
+                "user_name": user_name
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -157,7 +158,7 @@ class BotService:
                         context.bot,
                         self.owner_id,
                         f"🔔 Notificación de administración:\n\n"
-                        f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
+                        f"Operación realizada por {user_name} (ID: {user_id})\n"
                         f"Acción: Editar\n"
                         f"ID de Transacción: {transaction_id}"
                     )
@@ -168,14 +169,22 @@ class BotService:
                 context.bot,
                 chat_id,
                 self.developer_id,
-                update.effective_user.full_name,
+                user_name,
                 user_id,
                 "editar",
                 str(e)
             )
         return
 
-    async def _handle_closure_report(self, update, context, chat_id, user_id):
+    async def _handle_closure_report(self, update, context, message, chat_id, user_id):
+        parts = message.split()
+        if len(parts) != 2:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="Formato incorrecto. Usa: cierre <nombre del usuario>"
+            )
+            return
+        user_name = parts[1] if len(parts) > 1 else update.effective_user.full_name
         try:
             today = datetime.now(self.timezone).strftime("%Y-%m-%d")
             report = self.bigquery_utils.get_closure_report_by_date(today)
@@ -204,7 +213,7 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "closure_report",
                 "message_content": f"Cierre de caja para {today}",
-                "user_name": update.effective_user.full_name
+                "user_name": user_name
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -212,7 +221,7 @@ class BotService:
                         context.bot,
                         self.owner_id,
                         f"🔔 Notificación de administración:\n\n"
-                        f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
+                        f"Operación realizada por {user_name} (ID: {user_id})\n"
                         f"Acción: Cierre de caja\n"
                         f"Fecha: {today}\n\n"
                         f"🏦 Ventas por transferencia bancaria: ${transfer_sales}\n"
@@ -227,7 +236,7 @@ class BotService:
                 context.bot,
                 chat_id,
                 self.developer_id,
-                update.effective_user.full_name,
+                user_name,
                 user_id,
                 "cierre",
                 str(e)
@@ -236,7 +245,7 @@ class BotService:
 
     async def _handle_data_insert(self, update, context, message, chat_id, user_id):
         try:
-            gpt_response = interpret_message_with_gpt(message, self.config)
+            gpt_response = self.gpt_interpreter.interpret_message_with_gpt(message, self.config)
             structured_data = json.loads(gpt_response)
             if not structured_data.get("sales") and not structured_data.get("expenses"):
                 await context.bot.send_message(
@@ -246,22 +255,21 @@ class BotService:
                 return
             structured_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
             self.bigquery_utils.insert_to_bigquery(structured_data)
-
+            user_name = structured_data.get("sender_name", update.effective_user.full_name)
             self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.timezone).isoformat(),
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "operation_type": "data_insert",
                 "message_content": message,
-                "user_name": update.effective_user.full_name
+                "user_name": user_name
             })
 
+            summary = self.gpt_interpreter.generate_summary_in_spanish(gpt_response, original_message=message)
             await safe_send_message(
                 context.bot,
                 chat_id,
-                f"Registro guardado correctamente.\n\n"
-                f"{json.dumps(structured_data, indent=2)}\n\n"
-                f"✅ ID de Transacción guardada correctamente."
+                f"{summary}\n\n✅ ID de Transacción guardada correctamente."
             )
             await safe_send_message(
                 context.bot,
@@ -274,7 +282,7 @@ class BotService:
                     await safe_send_message(
                         context.bot,
                         self.owner_id,
-                        f"🔔 Nueva operación registrada por {update.effective_user.full_name} (ID: {user_id}):\n\n{message}\n\n"
+                        f"🔔 Nueva operación registrada por {user_name} (ID: {user_id}):\n\n{message}\n\n"
                         f"ID de Transacción: {structured_data['transaction_id']}"
                     )
             except Exception as notify_error:
@@ -284,13 +292,12 @@ class BotService:
                 context.bot,
                 chat_id,
                 self.developer_id,
-                update.effective_user.full_name,
+                user_name,
                 user_id,
                 "insertar",
                 str(e)
             )
             return
-            
 
     async def _notify_error(self, bot, chat_id, developer_id, user_name, user_id, action, error_message):
         """
