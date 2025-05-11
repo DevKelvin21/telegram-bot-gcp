@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
-from utils.helpers import safe_send_message, escape_user_text
-from utils.gpt_utils import interpret_message_with_gpt
+from utils.helpers import safe_send_message
+from utils.gpt_utils import GPTMessageInterpreter
 
 
 class BotService:
@@ -24,6 +24,7 @@ class BotService:
         self.bigquery_utils = bigquery_utils
         self.timezone = bigquery_utils.timezone
         self.developer_id = self.config.get("developerID", None)
+        self.gpt_interpreter = GPTMessageInterpreter()
 
     async def handle_start(self, update, context):
         await context.bot.send_message(
@@ -128,7 +129,7 @@ class BotService:
             return
         transaction_id, new_text = parts[1], parts[2]
         try:
-            gpt_response = interpret_message_with_gpt(new_text, self.config)
+            gpt_response = self.gpt_interpreter.interpret_message_with_gpt(new_text, self.config)
             new_data = json.loads(gpt_response)
             self.bigquery_utils.safe_edit(transaction_id, new_data)
 
@@ -236,7 +237,7 @@ class BotService:
 
     async def _handle_data_insert(self, update, context, message, chat_id, user_id):
         try:
-            gpt_response = interpret_message_with_gpt(message, self.config)
+            gpt_response = self.gpt_interpreter.interpret_message_with_gpt(message, self.config)
             structured_data = json.loads(gpt_response)
             if not structured_data.get("sales") and not structured_data.get("expenses"):
                 await context.bot.send_message(
@@ -256,12 +257,11 @@ class BotService:
                 "user_name": update.effective_user.full_name
             })
 
+            summary = self.gpt_interpreter.generate_summary_in_spanish(gpt_response)
             await safe_send_message(
                 context.bot,
                 chat_id,
-                f"Registro guardado correctamente.\n\n"
-                f"{json.dumps(structured_data, indent=2)}\n\n"
-                f"✅ ID de Transacción guardada correctamente."
+                f"{summary}\n\n✅ ID de Transacción guardada correctamente."
             )
             await safe_send_message(
                 context.bot,
@@ -290,7 +290,6 @@ class BotService:
                 str(e)
             )
             return
-            
 
     async def _notify_error(self, bot, chat_id, developer_id, user_name, user_id, action, error_message):
         """
