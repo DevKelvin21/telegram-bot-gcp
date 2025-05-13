@@ -146,7 +146,7 @@ class BotService:
             await safe_send_message(
                 context.bot,
                 chat_id,
-                f"`{transaction_id}`",
+                f"`{new_data["transaction_id"]}`",
                 parse_mode="MarkdownV2"
             )
             self.bigquery_utils.log_to_bigquery({
@@ -165,7 +165,7 @@ class BotService:
                         f"🔔 Notificación de administración:\n\n"
                         f"Operación realizada por {user_name} (ID: {user_id})\n"
                         f"Acción: Editar\n"
-                        f"ID de Transacción: {transaction_id}"
+                        f"ID de Transacción: {new_data["transaction_id"]}"
                     )
             except Exception as notify_error:
                 print(f"Error notificando al Owner: {notify_error}")
