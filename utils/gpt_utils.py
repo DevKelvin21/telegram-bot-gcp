@@ -20,20 +20,30 @@ class GPTMessageInterpreter:
     def interpret_message_with_gpt(self, message: str, config) -> str:
         model = config.get("gptModel", "gpt-3.5-turbo")
 
-        # Extract sender's name from the message
-        name_match = re.search(r"(?i)nombre[:\-]?\s*(\w+)", message)
-        if name_match:
-            sender_name = name_match.group(1)
-            message_without_name = re.sub(r"(?i)nombre[:\-]?\s*\w+", "", message).strip()
-        else:
-            # Assume the last word(s) in the message is the sender's name if no prefix is found
-            parts = message.rsplit(" ", 1)
-            if len(parts) > 1 and not re.search(r"\d", parts[1]):  # Ensure it's not a number
-                sender_name = parts[1]
-                message_without_name = parts[0].strip()
+        # Improved sender name detection: check for known names (case-insensitive) as last word
+        KNOWN_SENDERS = {"josue", "mila", "maria", "michel"}
+        words = message.strip().split()
+        sender_name = None
+        message_without_name = message
+        if words and words[-1].lower() in KNOWN_SENDERS:
+            sender_name = words[-1]
+            message_without_name = " ".join(words[:-1]).strip()
+
+        # Fallback: Extract sender's name from the message (if not already found)
+        if sender_name is None:
+            name_match = re.search(r"(?i)nombre[:\-]?\s*(\w+)", message)
+            if name_match:
+                sender_name = name_match.group(1)
+                message_without_name = re.sub(r"(?i)nombre[:\-]?\s*\w+", "", message).strip()
             else:
-                sender_name = None
-                message_without_name = message
+                # Assume the last word(s) in the message is the sender's name if no prefix is found
+                parts = message.rsplit(" ", 1)
+                if len(parts) > 1 and not re.search(r"\d", parts[1]):  # Ensure it's not a number
+                    sender_name = parts[1]
+                    message_without_name = parts[0].strip()
+                else:
+                    sender_name = None
+                    message_without_name = message
 
         response = self.client.chat.completions.create(
             model=model,
@@ -67,6 +77,8 @@ class GPTMessageInterpreter:
                         "- If the message refers to selling products (e.g., \"ramo\", \"rosa\", \"bon\", \"oasis\", \"listón\") or is not clearly defined, classify as a sale.\n"
                         "- If the message refers to purchases or costs (e.g., \"compramos\", \"gastamos\"), classify as expenses.\n"
                         "- Always extract as many individual sale items as possible.\n"
+                        "- Always extract items as singular (e.g., \"rosas\" -> \"rosa\").\n"
+                        "- If the message includes \"x \" before the price then treat it as a total sale price. unless \"cada uno\" or \"cada una\" is present \n"
                         "- Treat \"cada uno\" or \"cada una\" as unit price references.\n"
                         "- Handle combined items (e.g., \"ramo 12 rosas y 12 chocolates bon $19\") as a single line item.\n"
                         "- If quantity is not clear but price per unit is mentioned, infer quantity if possible.\n"
@@ -237,27 +249,32 @@ class GPTMessageInterpreter:
                         "Parsing rules:\n"
                         "1. If the message includes multiple lines or multiple items in one line (comma-separated), treat each as a separate inventory entry.\n"
                         "2. Interpret expressions such as:\n"
-                        "   - \"1 docena\" = 12 units\n"
+                        "   - \"1 docena\" or \"1 doc\" = 12 units\n"
                         "   - \"media docena\" = 6 units\n"
-                        "   - \"5 docenas\" = 60 units\n"
-                        "   - Allow plural/singular and numeric variations: \"una docena\", \"tres docenas\", \"12 unidades\", \"6 flores\"\n"
+                        "   - \"3 doc\" = 36 units\n"
+                        "   - Support both numeric and textual variants: \"una docena\", \"tres docenas\", \"12 unidades\", \"6 flores\"\n"
+                        "   - Always convert quantities to individual units\n"
                         "3. Normalize and extract:\n"
                         "   - \"item\": name of the flower (e.g., \"rosas\", \"girasoles\")\n"
                         "   - \"quantity\": integer quantity, converting docenas or fractions to unit count\n"
                         "   - \"quality\": should be \"special\" only if terms like \"de ecuador\", \"especial\", or \"premium\" are mentioned.\n"
                         "     Otherwise, if terms like \"de guatemala\", \"chapina\", or nothing is mentioned, use \"regular\".\n"
-                        "4. Ignore any irrelevant text.\n"
-                        "5. Always respond with clean JSON only — no comments, no markdown, no explanations.\n\n"
+                        "4. If the message includes some unrecognized text that does not match a known flower name, take the item anyway as an inventory entry.\n"
+                        "5. Always respond with clean JSON only — no comments, no markdown, no explanations.\n"
+                        "6. when extracting items always take it as singular:\n"
+                        "7. Recognize and include uncommon or informal flower names as valid inventory entries. Examples include: \"Astromelia\", \"Dragón\", \"Monte casino\", \"Magnus\", \"Gradiola\", \"Ginger\", \"Ave de paraíso\", \"Amor seco\", \"estandar\". These may appear with inconsistent spelling or casing and should still be recorded as valid items.\n\n"
                         "Example input:\n"
-                        "1 docena de rosas de guatemala\n"
+                        "1 doc rosas\n"
                         "1 docena de girasoles\n"
+                        "15 docenas de rosas especiales\n"
                         "media docena de gerberas de ecuador\n\n"
                         "Expected output:\n"
                         "{\n"
                         "  \"inventory\": [\n"
-                        "    { \"item\": \"rosas\", \"quantity\": 12, \"quality\": \"regular\" },\n"
-                        "    { \"item\": \"girasoles\", \"quantity\": 12, \"quality\": \"regular\" },\n"
-                        "    { \"item\": \"gerberas\", \"quantity\": 6, \"quality\": \"special\" }\n"
+                        "    { \"item\": \"rosa\", \"quantity\": 12, \"quality\": \"regular\" },\n"
+                        "    { \"item\": \"girasol\", \"quantity\": 12, \"quality\": \"regular\" },\n"
+                        "    { \"item\": \"rosa\", \"quantity\": 180, \"quality\": \"special\" },\n"
+                        "    { \"item\": \"gerbera\", \"quantity\": 6, \"quality\": \"special\" }\n"
                         "  ]\n"
                         "}"
                     )
