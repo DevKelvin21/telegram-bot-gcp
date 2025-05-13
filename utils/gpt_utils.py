@@ -77,6 +77,8 @@ class GPTMessageInterpreter:
                         "- If the message refers to selling products (e.g., \"ramo\", \"rosa\", \"bon\", \"oasis\", \"listón\") or is not clearly defined, classify as a sale.\n"
                         "- If the message refers to purchases or costs (e.g., \"compramos\", \"gastamos\"), classify as expenses.\n"
                         "- Always extract as many individual sale items as possible.\n"
+                        "- Always extract items as singular (e.g., \"rosas\" -> \"rosa\").\n"
+                        "- If the message includes \"x \" before the price then treat it as a total sale price. unless \"cada uno\" or \"cada una\" is present \n"
                         "- Treat \"cada uno\" or \"cada una\" as unit price references.\n"
                         "- Handle combined items (e.g., \"ramo 12 rosas y 12 chocolates bon $19\") as a single line item.\n"
                         "- If quantity is not clear but price per unit is mentioned, infer quantity if possible.\n"
