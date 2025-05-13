@@ -52,7 +52,7 @@ class GPTMessageInterpreter:
                         "      \"item\": \"string\",\n"
                         "      \"quantity\": int or null,\n"
                         "      \"unit_price\": float or null,\n"
-                        "      \"quality\": \"string\" \"regular\" | \"special\" (default to \"regular\" if not provided)\n"
+                        "      \"quality\": \"string\" (either \"regular\" or \"special\", default: \"regular\")\n"
                         "    }\n"
                         "  ],\n"
                         "  \"expenses\": [\n"
