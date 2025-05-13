@@ -259,6 +259,9 @@ class BotService:
                 )
                 return
 
+            structured_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
+            self.bigquery_utils.insert_to_bigquery(structured_data)
+
             if structured_data.get("sales"):
                 inventory_issues = self.inventory_manager.deduct_inventory(
                     structured_data["sales"], structured_data["transaction_id"]
@@ -269,9 +272,7 @@ class BotService:
                         text="⚠️ Problemas con el inventario:\n" +
                              "\n".join([f"- {issue['item']} ({issue['quality']}): {issue['reason']}" for issue in inventory_issues])
                     )
-
-            structured_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
-            self.bigquery_utils.insert_to_bigquery(structured_data)
+  
             user_name = structured_data.get("sender_name", update.effective_user.full_name)
             self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.timezone).isoformat(),
