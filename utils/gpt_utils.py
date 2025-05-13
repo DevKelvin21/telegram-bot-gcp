@@ -259,7 +259,7 @@ class GPTMessageInterpreter:
                         "   - \"quantity\": integer quantity, converting docenas or fractions to unit count\n"
                         "   - \"quality\": should be \"special\" only if terms like \"de ecuador\", \"especial\", or \"premium\" are mentioned.\n"
                         "     Otherwise, if terms like \"de guatemala\", \"chapina\", or nothing is mentioned, use \"regular\".\n"
-                        "4. if the message includes some weird text that does not match as a known flower name take the item anyways as an inventory entry.\n"
+                        "4. If the message includes some unrecognized text that does not match a known flower name, take the item anyway as an inventory entry.\n"
                         "5. Always respond with clean JSON only — no comments, no markdown, no explanations.\n"
                         "6. when extracting items always take it as singular:\n"
                         "7. Recognize and include uncommon or informal flower names as valid inventory entries. Examples include: \"Astromelia\", \"Dragón\", \"Monte casino\", \"Magnus\", \"Gradiola\", \"Ginger\", \"Ave de paraíso\", \"Amor seco\", \"estandar\". These may appear with inconsistent spelling or casing and should still be recorded as valid items.\n\n"
