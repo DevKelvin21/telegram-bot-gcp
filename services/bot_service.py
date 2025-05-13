@@ -259,6 +259,23 @@ class BotService:
                 )
                 return
 
+            # Set the date and insert data into BigQuery before inventory deductions
+            # to ensure an audit trail is preserved even if inventory operations fail.
+            structured_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
+            try:
+                self.bigquery_utils.insert_to_bigquery(structured_data)
+            except Exception as insert_error:
+                await self._notify_error(
+                    context.bot,
+                    chat_id,
+                    self.developer_id,
+                    update.effective_user.full_name,
+                    user_id,
+                    "insertar",
+                    f"Error al insertar en BigQuery: {insert_error}"
+                )
+                return
+
             if structured_data.get("sales"):
                 inventory_issues = self.inventory_manager.deduct_inventory(
                     structured_data["sales"], structured_data["transaction_id"]
@@ -269,9 +286,7 @@ class BotService:
                         text="⚠️ Problemas con el inventario:\n" +
                              "\n".join([f"- {issue['item']} ({issue['quality']}): {issue['reason']}" for issue in inventory_issues])
                     )
-
-            structured_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
-            self.bigquery_utils.insert_to_bigquery(structured_data)
+  
             user_name = structured_data.get("sender_name", update.effective_user.full_name)
             self.bigquery_utils.log_to_bigquery({
                 "timestamp": datetime.now(self.timezone).isoformat(),
