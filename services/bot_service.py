@@ -77,7 +77,8 @@ class BotService:
                 text="Formato incorrecto. Usa: eliminar <transaction_id> <nombre del usuario>"
             )
             return
-        transaction_id, user_name = parts[1], parts[2] if len(parts) > 2 else update.effective_user.full_name
+        transaction_id = parts[1]
+        user_name = parts[2] if len(parts) > 2 else update.effective_user.full_name  # Ensure user_name is initialized
         try:
             self.bigquery_utils.safe_delete(transaction_id)
             await safe_send_message(
@@ -116,7 +117,7 @@ class BotService:
                 context.bot,
                 chat_id,
                 self.developer_id,
-                user_name,
+                update.effective_user.full_name,
                 user_id,
                 "eliminar",
                 str(e)
@@ -173,7 +174,7 @@ class BotService:
                 context.bot,
                 chat_id,
                 self.developer_id,
-                user_name,
+                update.effective_user.full_name,
                 user_id,
                 "editar",
                 str(e)
@@ -188,7 +189,7 @@ class BotService:
                 text="Formato incorrecto. Usa: cierre <nombre del usuario>"
             )
             return
-        user_name = parts[1] if len(parts) > 1 else update.effective_user.full_name
+        user_name = parts[1] if len(parts) > 1 else update.effective_user.full_name  # Ensure user_name is initialized
         try:
             today = datetime.now(self.timezone).strftime("%Y-%m-%d")
             report = self.bigquery_utils.get_closure_report_by_date(today)
@@ -240,7 +241,7 @@ class BotService:
                 context.bot,
                 chat_id,
                 self.developer_id,
-                user_name,
+                update.effective_user.full_name,
                 user_id,
                 "cierre",
                 str(e)
@@ -308,7 +309,7 @@ class BotService:
                 context.bot,
                 chat_id,
                 self.developer_id,
-                user_name,
+                update.effective_user.full_name,
                 user_id,
                 "insertar",
                 str(e)
@@ -318,40 +319,33 @@ class BotService:
     async def _handle_inventory_update(self, update, context, message, chat_id, user_id):
         try:
             parts = message.split(":", 1)[1].strip()
-            if "\n" in parts:  # Check if the message contains multiple lines for bulk upload
-                await self._handle_bulk_inventory_update(update, context, parts, chat_id)
-            else:
-                await self._handle_single_inventory_update(update, context, parts, chat_id)
+            await self._handle_bulk_inventory_update(update, context, parts, chat_id)
+            
         except Exception as e:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=f"❌ Error al procesar el inventario: {str(e)}"
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "inventario",
+                str(e)
             )
-
-    async def _handle_single_inventory_update(self, update, context, message, chat_id):
+            return
         try:
-            parts = message.split()
-            if len(parts) < 2:
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text="Formato incorrecto. Usa: inventario: <cantidad> <item> [<calidad>]"
+            if self.config.get("liveNotifications"):
+                await safe_send_message(
+                    context.bot,
+                    self.owner_id,
+                    f"🔔 Notificación de administración:\n\n"
+                    f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
+                    f"Acción: Actualización de inventario\n"
+                    f"Mensaje: {message}"
                 )
-                return
+        except Exception as notify_error:
+            print(f"Error notificando al Owner: {notify_error}")
+        return
 
-            quantity = int(parts[0])
-            item = parts[1]
-            quality = parts[2] if len(parts) > 2 else "regular"
-
-            self.inventory_manager.update_inventory(item, quality, quantity)
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=f"✅ Inventario actualizado: {quantity} {item} ({quality})."
-            )
-        except Exception as e:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=f"❌ Error al actualizar el inventario: {str(e)}"
-            )
 
     async def _handle_bulk_inventory_update(self, update, context, message, chat_id):
         try:
@@ -370,6 +364,15 @@ class BotService:
                 quality = entry.get("quality", "regular")
                 quantity = entry.get("quantity", 0)
                 self.inventory_manager.update_inventory(item, quality, quantity)
+
+            self.bigquery_utils.log_to_bigquery({
+                "timestamp": datetime.now(self.timezone).isoformat(),
+                "user_id": update.effective_user.id,
+                "chat_id": chat_id,
+                "operation_type": "bulk_inventory_update",
+                "message_content": message,
+                "user_name": update.effective_user.full_name
+            })
 
             await context.bot.send_message(
                 chat_id=chat_id,
