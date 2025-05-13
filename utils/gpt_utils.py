@@ -20,20 +20,30 @@ class GPTMessageInterpreter:
     def interpret_message_with_gpt(self, message: str, config) -> str:
         model = config.get("gptModel", "gpt-3.5-turbo")
 
-        # Extract sender's name from the message
-        name_match = re.search(r"(?i)nombre[:\-]?\s*(\w+)", message)
-        if name_match:
-            sender_name = name_match.group(1)
-            message_without_name = re.sub(r"(?i)nombre[:\-]?\s*\w+", "", message).strip()
-        else:
-            # Assume the last word(s) in the message is the sender's name if no prefix is found
-            parts = message.rsplit(" ", 1)
-            if len(parts) > 1 and not re.search(r"\d", parts[1]):  # Ensure it's not a number
-                sender_name = parts[1]
-                message_without_name = parts[0].strip()
+        # Improved sender name detection: check for known names (case-insensitive) as last word
+        KNOWN_SENDERS = {"josue", "mila", "maria", "michel"}
+        words = message.strip().split()
+        sender_name = None
+        message_without_name = message
+        if words and words[-1].lower() in KNOWN_SENDERS:
+            sender_name = words[-1]
+            message_without_name = " ".join(words[:-1]).strip()
+
+        # Fallback: Extract sender's name from the message (if not already found)
+        if sender_name is None:
+            name_match = re.search(r"(?i)nombre[:\-]?\s*(\w+)", message)
+            if name_match:
+                sender_name = name_match.group(1)
+                message_without_name = re.sub(r"(?i)nombre[:\-]?\s*\w+", "", message).strip()
             else:
-                sender_name = None
-                message_without_name = message
+                # Assume the last word(s) in the message is the sender's name if no prefix is found
+                parts = message.rsplit(" ", 1)
+                if len(parts) > 1 and not re.search(r"\d", parts[1]):  # Ensure it's not a number
+                    sender_name = parts[1]
+                    message_without_name = parts[0].strip()
+                else:
+                    sender_name = None
+                    message_without_name = message
 
         response = self.client.chat.completions.create(
             model=model,
