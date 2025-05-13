@@ -52,7 +52,7 @@ class GPTMessageInterpreter:
                         "      \"item\": \"string\",\n"
                         "      \"quantity\": int or null,\n"
                         "      \"unit_price\": float or null,\n"
-                        "      \"quality\": \"string\" (\"regular\" or \"special\", default: \"regular\")\n"
+                        "      \"quality\": \"regular\" | \"special\" // default to \"regular\" if not specified\n"
                         "    }\n"
                         "  ],\n"
                         "  \"expenses\": [\n"
@@ -64,7 +64,7 @@ class GPTMessageInterpreter:
                         "  \"sender_name\": string or null\n"
                         "}\n\n"
                         "Interpretation rules:\n"
-                        "- If the message refers to selling products (e.g., \"ramo\", \"rosa\", \"bon\", \"oasis\", \"listón\"), or is not specified, classify as a sale.\n"
+                        "- If the message refers to selling products (e.g., \"ramo\", \"rosa\", \"bon\", \"oasis\", \"listón\") or is not clearly defined, classify as a sale.\n"
                         "- If the message refers to purchases or costs (e.g., \"compramos\", \"gastamos\"), classify as expenses.\n"
                         "- Always extract as many individual sale items as possible.\n"
                         "- Treat \"cada uno\" or \"cada una\" as unit price references.\n"
@@ -73,6 +73,8 @@ class GPTMessageInterpreter:
                         "- If unit price is ambiguous, leave it null.\n"
                         "- Accept and normalize product names beyond just flowers, including party gifts or accessories (e.g. chocolates, listón, oasis, varitas, claveles, helechos).\n"
                         "- If quality is not mentioned, default to \"regular\".\n"
+                        "- If quality indicators such as \"de ecuador\", \"especial\", or \"premium\" appear, assign quality as \"special\".\n"
+                        "- If indicators like \"de guatemala\", \"chapina\", or nothing are mentioned, assign \"regular\".\n"
                         "- Always return only valid JSON — no explanation, no commentary."
                     )
                 },
