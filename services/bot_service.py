@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from utils.helpers import safe_send_message
 from utils.gpt_utils import GPTMessageInterpreter
+from utils.firestore_utils import FirestoreInventoryManager
 
 
 class BotService:
@@ -25,6 +26,7 @@ class BotService:
         self.timezone = bigquery_utils.timezone
         self.developer_id = self.config.get("developerID", None)
         self.gpt_interpreter = GPTMessageInterpreter()
+        self.inventory_manager = FirestoreInventoryManager()
 
     async def handle_start(self, update, context):
         await context.bot.send_message(
@@ -48,6 +50,8 @@ class BotService:
             await self._handle_edit(update, context, message, chat_id, user_id)
         elif command.startswith("cierre"):
             await self._handle_closure_report(update, context, message, chat_id, user_id)
+        elif command.startswith("inventario:"):
+            await self._handle_inventory_update(update, context, message, chat_id, user_id)
         else:
             await self._handle_data_insert(update, context, message, chat_id, user_id)
 
@@ -253,6 +257,18 @@ class BotService:
                     text="No se encontró ninguna venta ni gasto en el mensaje."
                 )
                 return
+
+            if structured_data.get("sales"):
+                inventory_issues = self.inventory_manager.deduct_inventory(
+                    structured_data["sales"], structured_data["transaction_id"]
+                )
+                if inventory_issues:
+                    await context.bot.send_message(
+                        chat_id=self.owner_id,
+                        text="⚠️ Problemas con el inventario:\n" +
+                             "\n".join([f"- {issue['item']} ({issue['quality']}): {issue['reason']}" for issue in inventory_issues])
+                    )
+
             structured_data.setdefault("date", datetime.now(self.timezone).strftime("%Y-%m-%d"))
             self.bigquery_utils.insert_to_bigquery(structured_data)
             user_name = structured_data.get("sender_name", update.effective_user.full_name)
@@ -298,6 +314,72 @@ class BotService:
                 str(e)
             )
             return
+
+    async def _handle_inventory_update(self, update, context, message, chat_id, user_id):
+        try:
+            parts = message.split(":", 1)[1].strip()
+            if "\n" in parts:  # Check if the message contains multiple lines for bulk upload
+                await self._handle_bulk_inventory_update(update, context, parts, chat_id)
+            else:
+                await self._handle_single_inventory_update(update, context, parts, chat_id)
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ Error al procesar el inventario: {str(e)}"
+            )
+
+    async def _handle_single_inventory_update(self, update, context, message, chat_id):
+        try:
+            parts = message.split()
+            if len(parts) < 2:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="Formato incorrecto. Usa: inventario: <cantidad> <item> [<calidad>]"
+                )
+                return
+
+            quantity = int(parts[0])
+            item = parts[1]
+            quality = parts[2] if len(parts) > 2 else "regular"
+
+            self.inventory_manager.update_inventory(item, quality, quantity)
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"✅ Inventario actualizado: {quantity} {item} ({quality})."
+            )
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ Error al actualizar el inventario: {str(e)}"
+            )
+
+    async def _handle_bulk_inventory_update(self, update, context, message, chat_id):
+        try:
+            gpt_response = self.gpt_interpreter.interpret_bulk_inventory_with_gpt(message, self.config)
+            inventory_entries = json.loads(gpt_response).get("inventory", [])
+
+            if not inventory_entries:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="No se encontraron entradas válidas para el inventario en el mensaje."
+                )
+                return
+
+            for entry in inventory_entries:
+                item = entry.get("item")
+                quality = entry.get("quality", "regular")
+                quantity = entry.get("quantity", 0)
+                self.inventory_manager.update_inventory(item, quality, quantity)
+
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"✅ Inventario actualizado con {len(inventory_entries)} entradas."
+            )
+        except Exception as e:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"❌ Error al procesar la carga masiva de inventario: {str(e)}"
+            )
 
     async def _notify_error(self, bot, chat_id, developer_id, user_name, user_id, action, error_message):
         """

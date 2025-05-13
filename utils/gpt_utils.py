@@ -51,7 +51,8 @@ class GPTMessageInterpreter:
                         "    {\n"
                         "      \"item\": \"string\",\n"
                         "      \"quantity\": int or null,\n"
-                        "      \"unit_price\": float or null\n"
+                        "      \"unit_price\": float or null,\n"
+                        "      \"quality\": \"string\" (either \"regular\" or \"special\", default: \"regular\")\n"
                         "    }\n"
                         "  ],\n"
                         "  \"expenses\": [\n"
@@ -195,3 +196,47 @@ class GPTMessageInterpreter:
             import logging
             logging.error("Error while refining summary with GPT: %s", str(e))
             return f"{draft_summary}\n\nNota: No se pudo refinar el resumen automáticamente debido a un error inesperado."
+
+    def interpret_bulk_inventory_with_gpt(self, message: str, config) -> str:
+        """
+        Interprets a bulk inventory message using GPT to extract structured inventory data.
+
+        Args:
+            message (str): The bulk inventory message.
+            config (dict): The bot configuration.
+
+        Returns:
+            str: A JSON string containing the structured inventory data.
+        """
+        model = config.get("gptModel", "gpt-3.5-turbo")
+
+        response = self.client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an assistant that extracts structured inventory data from messages.\n\n"
+                        "Each message may include one or more inventory entries in free-text form.\n\n"
+                        "Output a JSON object in the following structure:\n\n"
+                        "{\n"
+                        "  \"inventory\": [\n"
+                        "    {\n"
+                        "      \"item\": \"string\",\n"
+                        "      \"quantity\": int,\n"
+                        "      \"quality\": \"string\" (default to \"regular\" if not provided)\n"
+                        "    }\n"
+                        "  ]\n"
+                        "}\n\n"
+                        "Rules:\n"
+                        "- If the message contains multiple lines, treat each line as a separate inventory entry.\n"
+                        "- Extract the item name, quantity, and optional quality from each line.\n"
+                        "- If quality is not mentioned, default it to \"regular\".\n"
+                        "- Always output only valid JSON without additional explanations."
+                    )
+                },
+                {"role": "user", "content": message}
+            ],
+            temperature=0.2
+        )
+        return response.choices[0].message.content
