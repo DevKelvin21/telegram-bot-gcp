@@ -80,6 +80,23 @@ class BotService:
         transaction_id = parts[1]
         user_name = parts[2] if len(parts) > 2 else update.effective_user.full_name  # Ensure user_name is initialized
         try:
+            transaction = self.bigquery_utils.get_transaction_by_id(transaction_id)
+            
+            if not transaction:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="❌ Transacción no encontrada."
+                )
+                return
+
+            # Restore inventory if the transaction contains sales
+            if transaction.get("sales"):
+                for sale in transaction["sales"]:
+                    item = sale.get("item")
+                    quality = sale.get("quality", "regular")
+                    quantity = sale.get("quantity", 0)
+                    self.inventory_manager.restore_inventory(item, quality, quantity)
+
             self.bigquery_utils.safe_delete(transaction_id)
             await safe_send_message(
                 context.bot,
