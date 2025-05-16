@@ -1,6 +1,13 @@
+import logging
 from google.cloud import firestore
 from datetime import datetime
 import pytz
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format="%(asctime)s - %(levelname)s - %(message)s"  # Define the log message format
+)
 
 class FirestoreInventoryManager:
     def __init__(self):
@@ -72,6 +79,7 @@ class FirestoreInventoryManager:
             )
         else:
             self.update_inventory(item, quality, quantity)
+            logging.info(f"Inventory document not found for item '{item}', quality '{quality}'. Calling update_inventory with quantity {quantity}.")
 
     def current_cst_iso(self):
         return datetime.now(self.timezone).isoformat()
