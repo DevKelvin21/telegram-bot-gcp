@@ -83,3 +83,18 @@ class FirestoreInventoryManager:
 
     def current_cst_iso(self):
         return datetime.now(self.timezone).isoformat()
+
+    def log_inventory_loss(self, user_id, user_name, chat_id, item, quality, quantity, original_message, timestamp):
+        """
+        Logs a single inventory loss entry to the 'inventory_loss' Firestore collection.
+        """
+        self.db.collection("inventory_loss").add({
+            "timestamp": timestamp,
+            "user_id": user_id,
+            "user_name": user_name,
+            "item": item,
+            "quality": quality,
+            "quantity": quantity,
+            "original_message": original_message,
+            "chat_id": chat_id,
+        })

@@ -401,6 +401,8 @@ class BotService:
                 return
 
             issues = []
+            timestamp = datetime.now(self.timezone).isoformat()
+            user_name = update.effective_user.full_name
             for entry in inventory_entries:
                 item = entry.get("item")
                 quality = entry.get("quality", "regular")
@@ -410,14 +412,25 @@ class BotService:
                     [{"item": item, "quality": quality, "quantity": quantity}], transaction_id="PERDIDA"
                 )
                 issues.extend(deduct_issues)
+                # Log to Firestore
+                self.inventory_manager.log_inventory_loss(
+                    user_id=user_id,
+                    user_name=user_name,
+                    chat_id=chat_id,
+                    item=item,
+                    quality=quality,
+                    quantity=quantity,
+                    original_message=message,
+                    timestamp=timestamp
+                )
 
             self.bigquery_utils.log_to_bigquery({
-                "timestamp": datetime.now(self.timezone).isoformat(),
+                "timestamp": timestamp,
                 "user_id": user_id,
                 "chat_id": chat_id,
                 "operation_type": "inventory_loss",
                 "message_content": message,
-                "user_name": update.effective_user.full_name
+                "user_name": user_name
             })
 
             await context.bot.send_message(
@@ -436,7 +449,7 @@ class BotService:
                         context.bot,
                         self.owner_id,
                         f"🔔 Notificación de administración:\n\n"
-                        f"Operación realizada por {update.effective_user.full_name} (ID: {user_id})\n"
+                        f"Operación realizada por {user_name} (ID: {user_id})\n"
                         f"Acción: Pérdida de inventario\n"
                         f"Mensaje: {message}"
                     )
