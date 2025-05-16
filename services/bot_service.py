@@ -3,6 +3,7 @@ from datetime import datetime
 from utils.helpers import safe_send_message
 from utils.gpt_utils import GPTMessageInterpreter
 from utils.firestore_utils import FirestoreInventoryManager
+from concurrent.futures import ThreadPoolExecutor
 
 
 class BotService:
@@ -27,6 +28,7 @@ class BotService:
         self.developer_id = self.config.get("developerID", None)
         self.gpt_interpreter = GPTMessageInterpreter()
         self.inventory_manager = FirestoreInventoryManager()
+        self.executor = ThreadPoolExecutor()
 
     async def handle_start(self, update, context):
         await context.bot.send_message(
@@ -78,8 +80,26 @@ class BotService:
             )
             return
         transaction_id = parts[1]
-        user_name = parts[2] if len(parts) > 2 else update.effective_user.full_name  # Ensure user_name is initialized
+        user_name = parts[2] if len(parts) > 2 else update.effective_user.full_name
         try:
+            transaction = await context.application.run_in_executor(
+                self.executor, self.bigquery_utils.get_transaction_by_id, transaction_id
+            )
+            
+            if not transaction:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="❌ Transacción no encontrada."
+                )
+                return
+
+            if transaction.get("sales"):
+                for sale in transaction["sales"]:
+                    item = sale.get("item")
+                    quality = sale.get("quality", "regular")
+                    quantity = sale.get("quantity", 0)
+                    self.inventory_manager.restore_inventory(item, quality, quantity)
+
             self.bigquery_utils.safe_delete(transaction_id)
             await safe_send_message(
                 context.bot,
