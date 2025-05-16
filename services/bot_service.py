@@ -4,6 +4,7 @@ from utils.helpers import safe_send_message
 from utils.gpt_utils import GPTMessageInterpreter
 from utils.firestore_utils import FirestoreInventoryManager
 from concurrent.futures import ThreadPoolExecutor
+import asyncio
 
 
 class BotService:
@@ -84,7 +85,9 @@ class BotService:
         transaction_id = parts[1]
         user_name = parts[2] if len(parts) > 2 else update.effective_user.full_name
         try:
-            transaction = await context.application.run_in_executor(
+            # Use asyncio.get_running_loop().run_in_executor instead of context.application.run_in_executor
+            loop = asyncio.get_running_loop()
+            transaction = await loop.run_in_executor(
                 self.executor, self.bigquery_utils.get_transaction_by_id, transaction_id
             )
             
