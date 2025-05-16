@@ -140,8 +140,6 @@ class BigQueryUtils:
         SELECT *
         FROM `{table_id}`
         WHERE transaction_id = @transaction_id
-          AND operation IS NULL
-          AND is_deleted = FALSE
         """
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
