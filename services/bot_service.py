@@ -54,6 +54,8 @@ class BotService:
             await self._handle_closure_report(update, context, message, chat_id, user_id)
         elif command.startswith("inventario:"):
             await self._handle_inventory_update(update, context, message, chat_id, user_id)
+        elif command.startswith("perdida:"):
+            await self._handle_inventory_loss(update, context, message, chat_id, user_id)
         else:
             await self._handle_data_insert(update, context, message, chat_id, user_id)
 
@@ -381,6 +383,89 @@ class BotService:
             print(f"Error notificando al Owner: {notify_error}")
         return
 
+    async def _handle_inventory_loss(self, update, context, message, chat_id, user_id):
+        """
+        Handles the 'perdida:' command to deduct items from inventory due to loss/disposal.
+        """
+        try:
+            parts = message.split(":", 1)[1].strip()
+            # Reuse the GPT bulk inventory parser
+            gpt_response = self.gpt_interpreter.interpret_bulk_inventory_with_gpt(parts, self.config)
+            inventory_entries = json.loads(gpt_response).get("inventory", [])
+
+            if not inventory_entries:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text="No se encontraron entradas válidas para la pérdida en el mensaje."
+                )
+                return
+
+            issues = []
+            timestamp = datetime.now(self.timezone).isoformat()
+            user_name = update.effective_user.full_name
+            for entry in inventory_entries:
+                item = entry.get("item")
+                quality = entry.get("quality", "regular")
+                quantity = entry.get("quantity", 0)
+                # Deduct inventory (like a sale)
+                deduct_issues = self.inventory_manager.deduct_inventory(
+                    [{"item": item, "quality": quality, "quantity": quantity}], transaction_id="PERDIDA"
+                )
+                issues.extend(deduct_issues)
+                # Log to Firestore
+                self.inventory_manager.log_inventory_loss(
+                    user_id=user_id,
+                    user_name=user_name,
+                    chat_id=chat_id,
+                    item=item,
+                    quality=quality,
+                    quantity=quantity,
+                    original_message=message,
+                    timestamp=timestamp
+                )
+
+            self.bigquery_utils.log_to_bigquery({
+                "timestamp": timestamp,
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "operation_type": "inventory_loss",
+                "message_content": message,
+                "user_name": user_name
+            })
+
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"✅ Inventario actualizado. Se registró la pérdida de {len(inventory_entries)} entradas."
+            )
+            if issues:
+                await context.bot.send_message(
+                    chat_id=self.owner_id,
+                    text="⚠️ Problemas al registrar la pérdida:\n" +
+                         "\n".join([f"- {issue['item']} ({issue['quality']}): {issue['reason']}" for issue in issues])
+                )
+            try:
+                if self.config.get("liveNotifications"):
+                    await safe_send_message(
+                        context.bot,
+                        self.owner_id,
+                        f"🔔 Notificación de administración:\n\n"
+                        f"Operación realizada por {user_name} (ID: {user_id})\n"
+                        f"Acción: Pérdida de inventario\n"
+                        f"Mensaje: {message}"
+                    )
+            except Exception as notify_error:
+                print(f"Error notificando al Owner: {notify_error}")
+        except Exception as e:
+            await self._notify_error(
+                context.bot,
+                chat_id,
+                self.developer_id,
+                update.effective_user.full_name,
+                user_id,
+                "perdida",
+                str(e)
+            )
+            return
 
     async def _handle_bulk_inventory_update(self, update, context, message, chat_id):
         try:
