@@ -83,10 +83,13 @@ class GPTMessageInterpreter:
                         "- Handle combined items (e.g., \"ramo 12 rosas y 12 chocolates bon $19\") as a single line item.\n"
                         "- If quantity is not clear but price per unit is mentioned, infer quantity if possible.\n"
                         "- If unit price is ambiguous, leave it null.\n"
+                        "- If the total_sale_price is null but the unit price and qty availabe then calculate \n"
+                        "- If the message includes \"total\" or \"total venta\", treat it as total sale price.\n"
+                        "- Always try to extract the total sale price, even if it's not explicitly mentioned since users will mention explicity if its unit_price\n"
                         "- Accept and normalize product names beyond just flowers, including party gifts or accessories (e.g. chocolates, listón, oasis, varitas, claveles, helechos).\n"
                         "- If quality is not mentioned, default to \"regular\".\n"
                         "- If quality indicators such as \"de ecuador\", \"especial\", or \"premium\" appear, assign quality as \"special\".\n"
-                        "- If indicators like \"de guatemala\", \"chapina\", or nothing are mentioned, assign \"regular\".\n"
+                        "- If indicators like \"de guatemala\", \"chapina\" ,\"de paquete\", or nothing are mentioned, assign \"regular\".\n"
                         "- Always return only valid JSON — no explanation, no commentary."
                     )
                 },
@@ -203,6 +206,18 @@ class GPTMessageInterpreter:
                             "Eres un asistente que ayuda a refinar resúmenes en español basados en mensajes de texto "
                             "de una floristería. El mensaje original puede contener errores gramaticales o falta de contexto. "
                             "Tu tarea es mejorar el resumen manteniendo un tono conciso y claro, y asegurándote de que sea fácil de entender."
+                            "El mensaje original contendra el nombre del remitente al final, por ejemplo \"mila\", no tomar como mil (de cantidad) para el qty o total sale price.\n\n"
+                            "No hagas traducción, solo mejora el resumen.\n\n"
+                            "Instrucciones:\n"
+                            "1. Usa un lenguaje claro y directo.\n"
+                            "2. Mantén la información relevante y elimina lo innecesario.\n\n"
+                            "No añadas información adicional ni cambies el significado del mensaje original.\n\n"
+                            "Ejemplo de resumen inicial:\n"
+                            "Esto es lo que entendí: mila vendiste 12 rosas y 6 girasoles por un total de $19 en efectivo.\n\n"
+                            "Ejemplo de mensaje original:\n"
+                            "12 rosas y 6 girasoles total $19 mila.\n\n"
+                            "Ejemplo de resumen refinado:\n"
+                            "mila, Vendiste 12 rosas y 6 girasoles por un total de $19 en efectivo.\n\n"
                         )
                     },
                     {"role": "user", "content": f"Mensaje original: {original_message}\nResumen inicial: {draft_summary}"}
