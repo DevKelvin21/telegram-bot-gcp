@@ -89,7 +89,7 @@ class GPTMessageInterpreter:
                         "- Accept and normalize product names beyond just flowers, including party gifts or accessories (e.g. chocolates, listón, oasis, varitas, claveles, helechos).\n"
                         "- If quality is not mentioned, default to \"regular\".\n"
                         "- If quality indicators such as \"de ecuador\", \"especial\", or \"premium\" appear, assign quality as \"special\".\n"
-                        "- If indicators like \"de guatemala\", \"chapina\", ,\"de paquete\", or nothing are mentioned, assign \"regular\".\n"
+                        "- If indicators like \"de guatemala\", \"chapina\" ,\"de paquete\", or nothing are mentioned, assign \"regular\".\n"
                         "- Always return only valid JSON — no explanation, no commentary."
                     )
                 },
