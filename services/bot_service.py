@@ -123,7 +123,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "delete_transaction",
                 "message_content": message,
-                "user_name": user_name
+                "user_name": user_name,
+                "transaction_id": transaction_id
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -180,7 +181,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "edit_transaction",
                 "message_content": message,
-                "user_name": user_name
+                "user_name": user_name,
+                "transaction_id": new_data['transaction_id']
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -319,7 +321,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "data_insert",
                 "message_content": message,
-                "user_name": user_name
+                "user_name": user_name,
+                "transaction_id": structured_data["transaction_id"]
             })
 
             summary = self.gpt_interpreter.generate_summary_in_spanish(gpt_response, original_message=message)
