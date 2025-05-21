@@ -71,7 +71,7 @@ class BotService:
             "chat_id": chat_id,
             "operation_type": "unauthorized_access",
             "message_content": message,
-            "user_name": update.effective_user.full_name
+            "user_name": update.effective_user.full_name,
             "transaction_id": None
         })
 
@@ -439,7 +439,7 @@ class BotService:
                 "operation_type": "inventory_loss",
                 "message_content": message,
                 "user_name": user_name,
-                "transaction_id": "PERDIDA"
+                "transaction_id": None
             })
 
             await context.bot.send_message(
