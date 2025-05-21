@@ -71,7 +71,8 @@ class BotService:
             "chat_id": chat_id,
             "operation_type": "unauthorized_access",
             "message_content": message,
-            "user_name": update.effective_user.full_name
+            "user_name": update.effective_user.full_name,
+            "transaction_id": None
         })
 
     async def _handle_delete(self, update, context, message, chat_id, user_id):
@@ -123,7 +124,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "delete_transaction",
                 "message_content": message,
-                "user_name": user_name
+                "user_name": user_name,
+                "transaction_id": transaction_id
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -180,7 +182,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "edit_transaction",
                 "message_content": message,
-                "user_name": user_name
+                "user_name": user_name,
+                "transaction_id": new_data['transaction_id']
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -243,7 +246,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "closure_report",
                 "message_content": f"Cierre de caja para {today}",
-                "user_name": user_name
+                "user_name": user_name,
+                "transaction_id": None
             })
             try:
                 if self.config.get("liveNotifications"):
@@ -319,7 +323,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "data_insert",
                 "message_content": message,
-                "user_name": user_name
+                "user_name": user_name,
+                "transaction_id": structured_data["transaction_id"]
             })
 
             summary = self.gpt_interpreter.generate_summary_in_spanish(gpt_response, original_message=message)
@@ -433,7 +438,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "inventory_loss",
                 "message_content": message,
-                "user_name": user_name
+                "user_name": user_name,
+                "transaction_id": None
             })
 
             await context.bot.send_message(
@@ -494,7 +500,8 @@ class BotService:
                 "chat_id": chat_id,
                 "operation_type": "bulk_inventory_update",
                 "message_content": message,
-                "user_name": update.effective_user.full_name
+                "user_name": update.effective_user.full_name,
+                "transaction_id": None
             })
 
             await context.bot.send_message(
