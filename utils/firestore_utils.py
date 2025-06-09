@@ -54,7 +54,7 @@ class FirestoreInventoryManager:
             # Deduct inventory
             new_quantity = max(0, inventory_data["quantity"] - quantity)
             self.db.collection("inventory").document(f"{item}_{quality}").set(
-                {"quantity": new_quantity}, merge=True
+                {"quantity": new_quantity, "lastUpdated": current_timestamp}, merge=True
             )
 
         for issue in issues:
@@ -65,7 +65,7 @@ class FirestoreInventoryManager:
     def update_inventory(self, item, quality, quantity):
         item, quality = self.resolve_synonyms(item, quality)
         self.db.collection("inventory").document(f"{item}_{quality}").set(
-            {"item": item, "quality": quality, "quantity": quantity}, merge=True
+            {"item": item, "quality": quality, "quantity": quantity, "lastUpdated": self.current_cst_iso()}, merge=True
         )
 
     def restore_inventory(self, item, quality, quantity):
@@ -75,7 +75,7 @@ class FirestoreInventoryManager:
             inventory_data = inventory_doc.to_dict()
             new_quantity = max(0, inventory_data["quantity"] + quantity)
             self.db.collection("inventory").document(f"{item}_{quality}").set(
-                {"quantity": new_quantity}, merge=True
+                {"quantity": new_quantity, "lastUpdated": self.current_cst_iso()}, merge=True
             )
         else:
             self.update_inventory(item, quality, quantity)
