@@ -54,7 +54,7 @@ class FirestoreInventoryManager:
             # Deduct inventory
             new_quantity = max(0, inventory_data["quantity"] - quantity)
             self.db.collection("inventory").document(f"{item}_{quality}").set(
-                {"quantity": new_quantity, "lastUpdated": self.current_cst_iso()}, merge=True
+                {"quantity": new_quantity, "lastUpdated": current_timestamp}, merge=True
             )
 
         for issue in issues:
