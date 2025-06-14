@@ -85,7 +85,8 @@ class FirestoreInventoryManager:
             inventory_data = inventory_doc.to_dict()
             try:
                 current_qty = int(inventory_data["quantity"])
-            except (ValueError, TypeError, KeyError):
+            except (ValueError, TypeError, KeyError) as e:
+                logging.error(f"Failed to parse 'quantity' from inventory_data: {inventory_data}. Exception: {e}")
                 current_qty = 0
             new_quantity = max(0, current_qty + int(quantity))
             self.db.collection("inventory").document(f"{item}_{quality}").set(
