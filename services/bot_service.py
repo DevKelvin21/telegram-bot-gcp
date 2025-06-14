@@ -527,20 +527,27 @@ class BotService:
             action (str): The action that caused the error.
             error_message (str): The error message to be sent to the developer.
         """
+        import traceback
         if not developer_id:
             return
-        await safe_send_message(
-            bot,
-            developer_id,
-            f"🚨 Error Report:\n\n"
-            f"User: {user_name} (ID: {user_id})\n"
-            f"Action: {action}\n"
-            f"Error: {error_message}"
-        )
-        await safe_send_message(
-            bot,
-            chat_id,
-            f"❌ Hubo un error al procesar tu solicitud. El desarollador ha sido notificado, Por favor intenta mas tarde."
-        )
+        try:
+            await safe_send_message(
+                bot,
+                developer_id,
+                f"🚨 Error Report:\n\n"
+                f"User: {user_name} (ID: {user_id})\n"
+                f"Action: {action}\n"
+                f"Error: {error_message}"
+            )
+            await safe_send_message(
+                bot,
+                chat_id,
+                f"❌ Hubo un error al procesar tu solicitud. El desarollador ha sido notificado, Por favor intenta mas tarde."
+            )
+        except Exception as notify_exception:
+            print("[ERROR] Failed to send error notification to developer or user chat.")
+            print("Original error:", error_message)
+            print("Notify exception:", notify_exception)
+            print(traceback.format_exc())
         return
 
