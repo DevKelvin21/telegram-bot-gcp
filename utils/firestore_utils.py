@@ -83,7 +83,11 @@ class FirestoreInventoryManager:
         inventory_doc = self.db.collection("inventory").document(f"{item}_{quality}").get()
         if inventory_doc.exists:
             inventory_data = inventory_doc.to_dict()
-            new_quantity = max(0, inventory_data["quantity"] + quantity)
+            try:
+                current_qty = int(inventory_data["quantity"])
+            except (ValueError, TypeError, KeyError):
+                current_qty = 0
+            new_quantity = max(0, current_qty + int(quantity))
             self.db.collection("inventory").document(f"{item}_{quality}").set(
                 {"quantity": new_quantity, "lastUpdated": self.current_cst_iso()}, merge=True
             )
