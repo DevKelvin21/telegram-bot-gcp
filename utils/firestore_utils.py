@@ -41,7 +41,12 @@ class FirestoreInventoryManager:
                 continue
 
             inventory_data = inventory_doc.to_dict()
-            if inventory_data["quantity"] < quantity:
+            # Ensure quantity is an integer for comparison and arithmetic
+            try:
+                inventory_qty = int(inventory_data["quantity"])
+            except (ValueError, TypeError, KeyError):
+                inventory_qty = 0
+            if inventory_qty < quantity:
                 issues.append({
                     "timestamp": self.current_cst_iso(),
                     "transaction_id": transaction_id,
@@ -52,7 +57,7 @@ class FirestoreInventoryManager:
                 })
 
             # Deduct inventory
-            new_quantity = max(0, inventory_data["quantity"] - quantity)
+            new_quantity = max(0, inventory_qty - quantity)
             self.db.collection("inventory").document(f"{item}_{quality}").set(
                 {"quantity": new_quantity, "lastUpdated": self.current_cst_iso()}, merge=True
             )
