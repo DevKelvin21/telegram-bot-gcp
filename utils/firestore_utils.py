@@ -44,7 +44,12 @@ class FirestoreInventoryManager:
             # Ensure quantity is an integer for comparison and arithmetic
             try:
                 inventory_qty = int(inventory_data["quantity"])
-            except (ValueError, TypeError, KeyError):
+            except (ValueError, TypeError, KeyError) as e:
+                logging.warning(
+                    "Failed to convert inventory quantity to integer. Defaulting to 0. "
+                    f"Transaction ID: {transaction_id}, Item: {item}, Quality: {quality}, "
+                    f"Error: {e}, Inventory Data: {inventory_data}"
+                )
                 inventory_qty = 0
             if inventory_qty < quantity:
                 issues.append({

@@ -5,6 +5,7 @@ from utils.gpt_utils import GPTMessageInterpreter
 from utils.firestore_utils import FirestoreInventoryManager
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
+import traceback
 
 
 class BotService:
@@ -527,7 +528,6 @@ class BotService:
             action (str): The action that caused the error.
             error_message (str): The error message to be sent to the developer.
         """
-        import traceback
         if not developer_id:
             return
         try:
