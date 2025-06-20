@@ -37,6 +37,13 @@ async def main(request):
 
     async with app:
         update = Update.de_json(request.json, app.bot)
+        update_id = update.update_id
+
+        if await asyncio.to_thread(firestore_loader.is_duplicate_update, update_id):
+            print(f"Duplicate update received: {update_id}")
+            return "ok"
+
+        await asyncio.to_thread(firestore_loader.mark_update_processed, update_id)
         await app.process_update(update)
 
     return "ok"
