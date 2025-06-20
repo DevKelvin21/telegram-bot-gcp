@@ -37,6 +37,13 @@ async def main(request):
 
     async with app:
         update = Update.de_json(request.json, app.bot)
+        update_id = update.update_id
+
+        if firestore_loader.is_duplicate_update(update_id):
+            print(f"Duplicate update received: {update_id}")
+            return "ok"
+
+        firestore_loader.mark_update_processed(update_id)
         await app.process_update(update)
 
     return "ok"

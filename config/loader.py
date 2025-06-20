@@ -1,4 +1,6 @@
 from google.cloud import firestore
+from datetime import datetime
+import pytz
 
 class FirestoreLoader:
     """
@@ -11,6 +13,8 @@ class FirestoreLoader:
         Initializes the FirestoreLoader with a Firestore client instance.
         """
         self.db = firestore.Client()
+        self.timezone = pytz.timezone("America/El_Salvador")
+
 
     def load_allowed_user_ids(self):
         """
@@ -59,3 +63,14 @@ class FirestoreLoader:
                 return int(data["ID"])
         raise RuntimeError("Owner ID not found in Firestore.")
 
+    def is_duplicate_update(self, update_id):
+        doc = self.db.collection("telegram_update_ids").document(str(update_id)).get()
+        return doc.exists
+
+    def mark_update_processed(self, update_id):
+        self.db.collection("telegram_update_ids").document(str(update_id)).set({
+            "timestamp": self.current_cst_iso()
+        })
+
+    def current_cst_iso(self):
+        return datetime.now(self.timezone).isoformat()
